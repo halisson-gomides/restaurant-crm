@@ -40,6 +40,11 @@ restaurant-crm/
 │   ├── __init__.py
 │   ├── conftest.py            # Pytest configuration
 │   └── test_main.py           # Basic application tests
+├── alembic/                   # Database migrations (Alembic)
+│   ├── env.py                 # Alembic environment configuration
+│   ├── alembic.ini            # Alembic settings
+│   ├── script.py.mako         # Migration template
+│   └── versions/              # Migration scripts
 ├── .env                       # Environment variables
 ├── pyproject.toml            # Project configuration and dependencies
 ├── pytest.ini                # Pytest configuration
@@ -117,6 +122,7 @@ restaurant-crm/
 - passlib with bcrypt for password hashing
 - Pydantic 2.5+ for data validation
 - Jinja2 for templating
+- Alembic 1.12.0+ for database migrations
 
 **Development Dependencies**:
 - pytest with async support
@@ -137,6 +143,42 @@ Template with all required configuration:
 - CORS origins
 - API configuration
 
+### 9. Database Migrations with Alembic ✅
+**Directory**: `alembic/`
+
+Alembic is configured for version-controlled database schema management:
+
+**Key Files**:
+- `alembic/env.py` - Async migration environment configuration
+- `alembic/alembic.ini` - Alembic settings and database URL
+- `alembic/versions/` - Migration scripts directory
+- `alembic/script.py.mako` - Migration template
+
+**Features**:
+- Async-compatible migration runner
+- Automatic migration generation from model changes
+- Full migration history tracking
+- Rollback capability
+- Environment-based configuration
+
+**Common Commands**:
+```bash
+# Create new migration after model changes
+alembic revision --autogenerate -m "Add users table"
+
+# Apply all pending migrations
+alembic upgrade head
+
+# Rollback one migration
+alembic downgrade -1
+
+# View migration history
+alembic history
+
+# View current database version
+alembic current
+```
+
 ## Key Features Implemented
 
 ### ✅ Async-First Architecture
@@ -156,6 +198,13 @@ Template with all required configuration:
 - Password hashing setup (bcrypt)
 - CORS middleware configured
 - Environment-based configuration
+
+### ✅ Database Migrations with Alembic
+- Version-controlled schema changes
+- Async-compatible migration runner
+- Automatic migration generation from models
+- Full migration history tracking
+- Rollback capability for safe deployments
 
 ### ✅ Testing Ready
 - 80% code coverage requirement
@@ -214,6 +263,9 @@ Stage 2 will implement:
 | `src/models/base.py` | Base model class | ✅ |
 | `src/main.py` | FastAPI application | ✅ |
 | `src/services/base_service.py` | Generic CRUD service | ✅ |
+| `alembic/env.py` | Alembic async environment | ✅ |
+| `alembic/alembic.ini` | Alembic configuration | ✅ |
+| `alembic/versions/001_initial_schema.py` | Initial migration template | ✅ |
 | `pyproject.toml` | Project configuration | ✅ |
 | `pytest.ini` | Test configuration | ✅ |
 | `.env` | Environment variables | ✅ |
@@ -253,6 +305,19 @@ Database (PostgreSQL)
 - **Code Style**: Black formatted, isort organized
 - **Testing**: Unit and integration test support
 
+## Documentation
+
+### Alembic Setup Guide
+A comprehensive guide for database migrations is available in [`docs/ALEMBIC_SETUP.md`](ALEMBIC_SETUP.md).
+
+This guide includes:
+- Alembic configuration details
+- Common migration commands
+- Workflow for adding new models
+- Migration file structure
+- Best practices for database versioning
+- Troubleshooting guide
+
 ## Conclusion
 
 Stage 1 provides a robust foundation for the Restaurant CRM system. The project is now ready for Stage 2 implementation with:
@@ -260,8 +325,9 @@ Stage 1 provides a robust foundation for the Restaurant CRM system. The project 
 - ✅ Clean, organized project structure
 - ✅ Async-first database operations
 - ✅ Comprehensive configuration management
+- ✅ Version-controlled database migrations (Alembic)
 - ✅ Testing framework in place
 - ✅ Security foundations established
 - ✅ Development best practices implemented
 
-The architecture follows industry standards and is ready for scaling to include all planned features through subsequent stages.
+The architecture follows industry standards and is ready for scaling to include all planned features through subsequent stages. All database schema changes will be tracked and versioned through Alembic migrations, ensuring reproducible deployments and easy rollback capabilities.
