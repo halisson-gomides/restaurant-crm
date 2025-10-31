@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro CNPJ - {{ company_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Progress Indicator -->
+        <div class="mb-8">
+            <div class="flex items-center justify-center">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                            1
+                        </div>
+                        <span class="ml-2 text-sm font-medium text-indigo-600">Dados da Empresa</span>
+                    </div>
+                    <div class="w-8 h-0.5 bg-gray-300"></div>
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gray-300 text-gray-500 rounded-full flex items-center justify-center text-sm font-medium">
+                            2
+                        </div>
+                        <span class="ml-2 text-sm font-medium text-gray-500">Endereço</span>
+                    </div>
+                    <div class="w-8 h-0.5 bg-gray-300"></div>
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gray-300 text-gray-500 rounded-full flex items-center justify-center text-sm font-medium">
+                            3
+                        </div>
+                        <span class="ml-2 text-sm font-medium text-gray-500">Conclusão</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration Form -->
+        <div id="registration-form" class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="mb-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                <i class="fas fa-building text-blue-600"></i>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                                Cadastro de Pessoa Jurídica
+                            </h3>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Preencha as informações da sua empresa
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <form hx-post="/registration/htmx/cnpj-step1" 
+                      hx-target="#step1-response"
+                      hx-swap="innerHTML"
+                      hx-indicator=".form-loading"
+                      hx-encoding="multipart/form-data">
+                    
+                    <input type="hidden" name="session_id" value="{{ session_id }}">
+                    
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <!-- Business Type -->
+                        <div class="sm:col-span-2">
+                            <label for="qual_seu_negocio" class="block text-sm font-medium text-gray-700">
+                                Qual o seu negócio? *
+                            </label>
+                            <select id="qual_seu_negocio" name="qual_seu_negocio" required
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">Selecione o tipo de negócio</option>
+                                <option value="Academia">Academia</option>
+                                <option value="Adega">Adega</option>
+                                <option value="Bar">Bar</option>
+                                <option value="Bomboniere">Bomboniere</option>
+                                <option value="Cantina">Cantina</option>
+                                <option value="Clube esportivo">Clube esportivo</option>
+                                <option value="Condomínio">Condomínio</option>
+                                <option value="Confeitaria">Confeitaria</option>
+                                <option value="Doceria">Doceria</option>
+                                <option value="Dogueiro">Dogueiro</option>
+                                <option value="Escola">Escola</option>
+                                <option value="Food service">Food service</option>
+                                <option value="Hotel">Hotel</option>
+                                <option value="Instituição religiosa">Instituição religiosa</option>
+                                <option value="Lanchonete">Lanchonete</option>
+                                <option value="Mercearia">Mercearia</option>
+                                <option value="Mini mercado">Mini mercado</option>
+                                <option value="Padaria">Padaria</option>
+                                <option value="Pastelaria">Pastelaria</option>
+                                <option value="Pizzaria">Pizzaria</option>
+                                <option value="Restaurante">Restaurante</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
+
+                        <!-- CNPJ -->
+                        <div class="sm:col-span-2">
+                            <label for="cnpj" class="block text-sm font-medium text-gray-700">
+                                CNPJ *
+                            </label>
+                            <input type="text" 
+                                   id="cnpj" 
+                                   name="cnpj" 
+                                   required
+                                   placeholder="00.000.000/0000-00"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                   hx-get="/registration/validate/document/CNPJ"
+                                   hx-trigger="blur"
+                                   hx-target="#cnpj-validation"
+                                   hx-swap="innerHTML"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <div id="cnpj-validation" class="mt-1"></div>
+                        </div>
+
+                        <!-- Company Legal Name -->
+                        <div class="sm:col-span-2">
+                            <label for="razao_social" class="block text-sm font-medium text-gray-700">
+                                Razão Social *
+                            </label>
+                            <input type="text" 
+                                   id="razao_social" 
+                                   name="razao_social" 
+                                   required
+                                   placeholder="Nome completo da empresa"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+
+                        <!-- Your Name -->
+                        <div>
+                            <label for="seu_nome" class="block text-sm font-medium text-gray-700">
+                                Seu nome *
+                            </label>
+                            <input type="text" 
+                                   id="seu_nome" 
+                                   name="seu_nome" 
+                                   required
+                                   placeholder="Nome completo"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+
+                        <!-- Your Role -->
+                        <div>
+                            <label for="sua_funcao" class="block text-sm font-medium text-gray-700">
+                                Sua função na empresa *
+                            </label>
+                            <select id="sua_funcao" name="sua_funcao" required
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">Selecione sua função</option>
+                                <option value="Proprietário">Proprietário</option>
+                                <option value="Gerente">Gerente</option>
+                                <option value="Estoquista">Estoquista</option>
+                            </select>
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700">
+                                E-mail *
+                            </label>
+                            <input type="email" 
+                                   id="email" 
+                                   name="email" 
+                                   required
+                                   placeholder="seu@email.com"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                   hx-get="/registration/validate/document/EMAIL"
+                                   hx-trigger="blur"
+                                   hx-target="#email-validation"
+                                   hx-swap="innerHTML">
+                            <div id="email-validation" class="mt-1"></div>
+                        </div>
+
+                        <!-- Phone -->
+                        <div>
+                            <label for="celular" class="block text-sm font-medium text-gray-700">
+                                Celular *
+                            </label>
+                            <input type="tel" 
+                                   id="celular" 
+                                   name="celular" 
+                                   required
+                                   placeholder="(11) 99999-9999"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+
+                        <!-- Terms and Marketing -->
+                        <div class="sm:col-span-2">
+                            <div class="space-y-4">
+                                <div class="flex items-start">
+                                    <div class="flex items-center h-5">
+                                        <input id="terms_accepted" 
+                                               name="terms_accepted" 
+                                               type="checkbox" 
+                                               required
+                                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                    </div>
+                                    <div class="ml-3 text-sm">
+                                        <label for="terms_accepted" class="font-medium text-gray-700">
+                                            Concordo com os termos da 
+                                            <a href="#" class="text-indigo-600 hover:text-indigo-500">Política de Privacidade</a> *
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-start">
+                                    <div class="flex items-center h-5">
+                                        <input id="marketing_opt_in" 
+                                               name="marketing_opt_in" 
+                                               type="checkbox"
+                                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                    </div>
+                                    <div class="ml-3 text-sm">
+                                        <label for="marketing_opt_in" class="text-gray-700">
+                                            Desejo receber e-mails com promoções e divulgação de material do {{ company_name }} e seus parceiros
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Response Area -->
+                    <div id="step1-response" class="mt-6"></div>
+
+                    <!-- Submit Button -->
+                    <div class="mt-6 flex justify-between">
+                        <a href="/registration" 
+                           class="btn-secondary">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Voltar
+                        </a>
+                        <button type="submit" 
+                                class="btn-primary">
+                            <span class="form-loading htmx-indicator mr-2">
+                                <div class="loading-spinner"></div>
+                            </span>
+                            Avançar para Endereço
+                            <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="mt-8 bg-blue-50 rounded-lg p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-blue-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">
+                        Precisa de ajuda?
+                    </h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p>
+                            Se você tem dúvidas sobre o processo de cadastro, 
+                            nossa equipe está disponível para ajudar.
+                        </p>
+                        <p class="mt-2">
+                            <a href="mailto:suporte@comprajai.com.br" class="font-medium underline hover:text-blue-600">
+                                suporte@comprajai.com.br
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% endblock %}

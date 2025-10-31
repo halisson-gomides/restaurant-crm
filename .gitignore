@@ -7,6 +7,10 @@ wheels/
 *.egg-info
 .env
 uv.lock
+tests/
 
 # Virtual environments
 .venv
+
+# Tests
+.coverage

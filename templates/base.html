@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ company_name }} - Sistema de Cadastro{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" 
+            integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" 
+            crossorigin="anonymous"></script>
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        'compra-blue': {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        .transition-all { transition: all 0.2s ease-in-out; }
+        .form-input { 
+            @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500;
+        }
+        .btn-primary { 
+            @apply inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+        }
+        .btn-secondary { 
+            @apply inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50;
+        }
+        .error-message {
+            @apply mt-1 text-sm text-red-600;
+        }
+        .success-message {
+            @apply mt-1 text-sm text-green-600;
+        }
+        .loading-spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i class="fas fa-shopping-cart text-indigo-600 text-xl mr-2"></i>
+                        <h1 class="text-xl font-bold text-gray-900">{{ company_name }}</h1>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-gray-500 hover:text-gray-700 text-sm">
+                        <i class="fas fa-home mr-1"></i>
+                        Início
+                    </a>
+                    <a href="/auth/login" class="text-gray-500 hover:text-gray-700 text-sm">
+                        <i class="fas fa-sign-in-alt mr-1"></i>
+                        Login
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="min-h-screen">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-12">
+        <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <div class="flex items-center mb-4">
+                        <i class="fas fa-shopping-cart text-indigo-600 text-lg mr-2"></i>
+                        <span class="text-lg font-bold text-gray-900">{{ company_name }}</span>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        Sistema completo de gestão para restaurantes e comércios.
+                    </p>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Links Úteis</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-sm text-gray-600 hover:text-gray-900">Política de Privacidade</a></li>
+                        <li><a href="#" class="text-sm text-gray-600 hover:text-gray-900">Termos de Uso</a></li>
+                        <li><a href="#" class="text-sm text-gray-600 hover:text-gray-900">Suporte</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Contato</h3>
+                    <ul class="space-y-2">
+                        <li class="text-sm text-gray-600">
+                            <i class="fas fa-envelope mr-2"></i>
+                            contato@comprajai.com.br
+                        </li>
+                        <li class="text-sm text-gray-600">
+                            <i class="fas fa-phone mr-2"></i>
+                            (11) 9999-9999
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-8 pt-8 border-t border-gray-200">
+                <p class="text-sm text-gray-500 text-center">
+                    © 2025 {{ company_name }}. Todos os direitos reservados.
+                </p>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 shadow-lg">
+            <div class="flex items-center space-x-3">
+                <div class="loading-spinner"></div>
+                <span class="text-gray-700">Processando...</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Error Toast -->
+    <div id="error-toast" class="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg opacity-0 invisible transition-all duration-300 z-50" style="display: none;">
+        <div class="flex items-center">
+            <i class="fas fa-exclamation-circle mr-2"></i>
+            <span id="error-message">Erro!</span>
+            <button onclick="closeErrorToast()" class="ml-4 text-white hover:text-gray-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Success Toast -->
+    <div id="success-toast" class="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg opacity-0 invisible transition-all duration-300 z-50" style="display: none;">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span id="success-message">Sucesso!</span>
+            <button onclick="closeSuccessToast()" class="ml-4 text-white hover:text-gray-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- HTMX Global Configuration -->
+    <script>
+        // HTMX configuration
+        htmx.config.globalViewTransitions = true;
+        
+        // Show loading overlay on HTMX requests
+        document.addEventListener('htmx:beforeRequest', function(e) {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('loading-overlay').classList.add('flex');
+        });
+        
+        document.addEventListener('htmx:afterRequest', function(e) {
+            document.getElementById('loading-overlay').classList.add('hidden');
+            document.getElementById('loading-overlay').classList.remove('flex');
+        });
+        
+        // Handle HTMX errors
+        document.addEventListener('htmx:responseError', function(e) {
+            showErrorToast('Erro de conexão. Tente novamente.');
+        });
+        
+        // Utility functions
+        function showErrorToast(message) {
+            const toast = document.getElementById('error-toast');
+            const messageEl = document.getElementById('error-message');
+            messageEl.textContent = message;
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => closeErrorToast(), 5000);
+        }
+        
+        function closeErrorToast() {
+            document.getElementById('error-toast').classList.add('translate-x-full');
+        }
+        
+        function showSuccessToast(message) {
+            const toast = document.getElementById('success-toast');
+            const messageEl = document.getElementById('success-message');
+            messageEl.textContent = message;
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => closeSuccessToast(), 5000);
+        }
+        
+        function closeSuccessToast() {
+            document.getElementById('success-toast').classList.add('translate-x-full');
+        }
+        
+        // Form formatting functions
+        
+    </script>
+    
+    <!-- Stage 2 JavaScript -->
+    <script src="/static/js/stage2.js"></script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

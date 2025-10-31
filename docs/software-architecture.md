@@ -170,6 +170,27 @@ CREATE TABLE categories (
 );
 ```
 
+#### Shopping Items Catalog
+```sql
+CREATE TABLE shopping_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    category_id UUID REFERENCES categories(id),
+    description TEXT,
+    default_unit VARCHAR(20), -- 'kg', 'g', 'l', 'ml', 'unidade', 'pacote', 'caixa', etc.
+    estimated_price DECIMAL(10,2), -- Estimated price for reference
+    barcode VARCHAR(50), -- For future barcode scanning feature
+    is_active BOOLEAN DEFAULT TRUE,
+    usage_frequency INTEGER DEFAULT 0, -- How often this item appears in shopping lists
+    created_by UUID REFERENCES users(id), -- Who added this item
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Ensure unique names per category to prevent duplicates
+    UNIQUE(name, category_id)
+);
+```
+
 #### Supermarkets
 ```sql
 CREATE TABLE supermarkets (
@@ -200,13 +221,29 @@ CREATE TABLE shopping_lists (
 CREATE TABLE shopping_list_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     shopping_list_id UUID REFERENCES shopping_lists(id),
-    category_id UUID REFERENCES categories(id),
-    name VARCHAR(255) NOT NULL,
+    shopping_item_id UUID REFERENCES shopping_items(id), -- References catalog item
     quantity DECIMAL(10,2),
-    unit VARCHAR(20),
-    estimated_price DECIMAL(10,2),
+    unit VARCHAR(20), -- Can override the default unit from catalog
+    estimated_price DECIMAL(10,2), -- User's estimated price for this specific list
+    actual_price DECIMAL(10,2), -- Real price found while shopping
     notes TEXT,
     is_completed BOOLEAN DEFAULT FALSE,
+    added_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Ensure unique items per shopping list (prevent duplicates)
+    UNIQUE(shopping_list_id, shopping_item_id)
+);
+```
+
+#### Custom Items (for items not in catalog)
+```sql
+CREATE TABLE custom_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shopping_list_item_id UUID REFERENCES shopping_list_items(id) ON DELETE CASCADE,
+    original_name VARCHAR(255) NOT NULL, -- The custom name provided by user
+    category_id UUID REFERENCES categories(id), -- Suggested category for the item
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
@@ -218,8 +255,31 @@ CREATE TABLE item_prices (
     shopping_list_item_id UUID REFERENCES shopping_list_items(id),
     supermarket_id UUID REFERENCES supermarkets(id),
     price DECIMAL(10,2) NOT NULL,
+    price_per_unit DECIMAL(10,4), -- Price per unit for better comparison
+    unit_used VARCHAR(20), -- Unit used for this price (kg, unidade, etc.)
     checked_by UUID REFERENCES users(id),
-    checked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    checked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    is_available BOOLEAN DEFAULT TRUE, -- Whether item is currently available
+    
+    -- Track price history
+    UNIQUE(shopping_list_item_id, supermarket_id, checked_at)
+);
+```
+
+#### Item Usage Statistics (for analytics and recommendations)
+```sql
+CREATE TABLE item_usage_stats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shopping_item_id UUID REFERENCES shopping_items(id),
+    organization_id UUID REFERENCES organizations(id),
+    total_used INTEGER DEFAULT 0, -- Total times this item was used
+    avg_quantity DECIMAL(10,2), -- Average quantity used
+    last_used_date DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Unique per organization and item
+    UNIQUE(shopping_item_id, organization_id)
 );
 ```
 
@@ -638,272 +698,868 @@ addopts =
 
 ---
 
-## Stage 2: Client Form Register
+## Stage 2: Client Form Register (CNPJ/CPF Registration System)
 
 ### Objectives
-- Implement organization/company registration system
-- Create secure user profile management
-- Build validation for Brazilian business IDs (CNPJ)
-- Design clean, accessible forms
+- Implement dual registration flows (CNPJ for companies, CPF for individuals)
+- Create multi-step registration forms with progressive validation
+- Build comprehensive validation for Brazilian IDs (CNPJ/CPF)
+- Design mobile-first responsive UI with HTMX integration
+- Implement anti-bot protection and external API integration
+- Create reusable form components for address and consent management
 
 ### Implementation Steps
 
-#### 2.1 Organization Models
-Create `src/models/organization.py`:
+#### 2.1 Data Models
+Create `src/models/client_registration.py`:
 
 ```python
-from sqlalchemy import Column, String, Text
+from sqlalchemy import Column, String, Text, Date, Boolean, Integer
+from sqlalchemy.orm import relationship
 from .base import BaseModel
 
-class Organization(BaseModel):
-    __tablename__ = "organizations"
+class Address(BaseModel):
+    __tablename__ = "addresses"
     
-    cnpj = Column(String(18), unique=True, index=True, nullable=False)
-    name = Column(String(255), nullable=False)
-    trade_name = Column(String(255))
-    address = Column(Text)
-    phone = Column(String(20))
-    email = Column(String(255), unique=True, index=True)
+    cep = Column(String(9), nullable=False)
+    endereco = Column(Text, nullable=False)
+    bairro = Column(String(100))
+    cidade = Column(String(100))
+    estado = Column(String(2))
+    
+class RegistrationSession(BaseModel):
+    __tablename__ = "registration_sessions"
+    
+    session_id = Column(String(255), unique=True, nullable=False)
+    registration_type = Column(String(10), nullable=False)  # 'CNPJ' or 'CPF'
+    step = Column(Integer, default=1)
+    is_completed = Column(Boolean, default=False)
+    data = Column(Text)  # JSON string for form data
+
+class CNPJRegistration(BaseModel):
+    __tablename__ = "cnpj_registrations"
+    
+    qual_seu_negocio = Column(String(100), nullable=False)
+    cnpj = Column(String(18), unique=True, nullable=False)
+    razao_social = Column(String(255), nullable=False)
+    seu_nome = Column(String(255), nullable=False)
+    sua_funcao = Column(String(50), nullable=False)
+    email = Column(String(255), nullable=False)
+    celular = Column(String(20), nullable=False)
+    terms_accepted = Column(Boolean, default=False)
+    marketing_opt_in = Column(Boolean, default=False)
+    
+    # Address
+    cep = Column(String(9), nullable=False)
+    endereco = Column(Text, nullable=False)
+    bairro = Column(String(100), nullable=False)
+    cidade = Column(String(100), nullable=False)
+    estado = Column(String(2), nullable=False)
+    
+    # Relationship
+    address = relationship("Address", foreign_keys=[cep, endereco])
+
+class CPFRegistration(BaseModel):
+    __tablename__ = "cpf_registrations"
+    
+    perfil_compra = Column(String(20), nullable=False)  # 'casa', 'negocio', 'ambos'
+    qual_negocio_cpf = Column(String(255))  # Conditional field
+    cpf = Column(String(14), unique=True, nullable=False)
+    nome_completo = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    genero = Column(String(20), nullable=False)
+    celular = Column(String(20), nullable=False)
+    data_nascimento = Column(Date, nullable=False)
+    terms_accepted = Column(Boolean, default=False)
+    marketing_opt_in = Column(Boolean, default=False)
+    
+    # Address
+    cep = Column(String(9), nullable=False)
+    endereco = Column(Text, nullable=False)
+    bairro = Column(String(100), nullable=False)
+    cidade = Column(String(100), nullable=False)
+    estado = Column(String(2), nullable=False)
+    
+    # Relationship
+    address = relationship("Address", foreign_keys=[cep, endereco])
+
+# Update User model to include registration data
+class User(BaseModel):
+    __tablename__ = "users"
+    
+    username = Column(String(20), unique=True, index=True, nullable=False)  # CPF or CNPJ
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    organization_id = Column(String, ForeignKey("organizations.id"))
+    role = Column(String(20), nullable=False)  # admin, manager, employee, shopper, customer
+    first_name = Column(String(100))
+    last_name = Column(String(100))
+    is_active = Column(Boolean, default=True)
+    
+    # Registration type
+    registration_type = Column(String(10))  # 'CNPJ' or 'CPF'
+    registration_data = Column(Text)  # JSON string
+    
+    # Relationships
+    organization = relationship("Organization", back_populates="users")
 ```
 
-#### 2.2 Organization Schemas
-Create `src/schemas/organization.py`:
+#### 2.2 Registration Schemas
+Create `src/schemas/client_registration.py`:
 
 ```python
-from pydantic import BaseModel, EmailStr, validator
-from typing import Optional
+from pydantic import BaseModel, EmailStr, validator, Field
+from typing import Optional, List, Dict, Any
+from datetime import date
 import re
 
-class OrganizationBase(BaseModel):
-    name: str
-    trade_name: Optional[str] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[EmailStr] = None
+# Address schemas
+class AddressBase(BaseModel):
+    cep: str
+    endereco: str
+    bairro: str
+    cidade: str
+    estado: str
 
-class OrganizationCreate(OrganizationBase):
-    cnpj: str
-    
-    @validator('cnpj')
-    def validate_cnpj(cls, v):
-        # CNPJ validation logic
-        cnpj = re.sub(r'[^0-9]', '', v)
-        if len(cnpj) != 14:
-            raise ValueError('CNPJ must have 14 digits')
-        return cnpj
+class AddressCreate(AddressBase):
+    pass
 
-class OrganizationUpdate(BaseModel):
-    name: Optional[str] = None
-    trade_name: Optional[str] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[EmailStr] = None
-
-class OrganizationOut(OrganizationBase):
+class AddressOut(AddressBase):
     id: str
-    cnpj: str
+    
+    class Config:
+        from_attributes = True
+
+# CNPJ Registration schemas
+class CNPJStep1(BaseModel):
+    qual_seu_negocio: str = Field(..., description="Type of business")
+    cnpj: str = Field(..., description="Company CNPJ")
+    razao_social: str = Field(..., description="Company legal name")
+    seu_nome: str = Field(..., description="Your name")
+    sua_funcao: str = Field(..., description="Your role in the company")
+    email: EmailStr
+    celular: str = Field(..., description="Mobile phone")
+    terms_accepted: bool = Field(..., description="Terms acceptance")
+    marketing_opt_in: Optional[bool] = Field(default=False, description="Marketing consent")
+
+class CNPJStep2(AddressBase):
+    recaptcha_token: str = Field(..., description="reCAPTCHA token")
+
+class CNPJRegistrationComplete(CNPJStep1, CNPJStep2):
+    pass
+
+class CNPJRegistrationOut(CNPJRegistrationComplete):
+    id: str
     created_at: str
     
     class Config:
         from_attributes = True
 
-class OrganizationInDB(OrganizationOut):
+# CPF Registration schemas  
+class CPFStep1(BaseModel):
+    perfil_compra: str = Field(..., description="Purchase profile")
+    qual_negocio_cpf: Optional[str] = Field(default=None, description="Business name if applicable")
+    cpf: str = Field(..., description="Individual CPF")
+    nome_completo: str = Field(..., description="Full name")
+    email: EmailStr
+    genero: str = Field(..., description="Gender")
+    celular: str = Field(..., description="Mobile phone")
+    terms_accepted: bool = Field(..., description="Terms acceptance")
+    marketing_opt_in: Optional[bool] = Field(default=False, description="Marketing consent")
+
+class CPFStep2(BaseModel):
+    data_nascimento: date = Field(..., description="Birth date")
+    cep: str
+    endereco: str
+    bairro: str
+    cidade: str
+    estado: str
+    recaptcha_token: str = Field(..., description="reCAPTCHA token")
+
+class CPFRegistrationComplete(CPFStep1, CPFStep2):
     pass
+
+class CPFRegistrationOut(CPFRegistrationComplete):
+    id: str
+    created_at: str
+    
+    class Config:
+        from_attributes = True
+
+# Registration session schemas
+class RegistrationSessionCreate(BaseModel):
+    registration_type: str = Field(..., regex="^(CNPJ|CPF)$")
+
+class RegistrationSessionOut(BaseModel):
+    session_id: str
+    registration_type: str
+    step: int
+    is_completed: bool
+    data: Optional[Dict[str, Any]] = None
+    created_at: str
+    
+    class Config:
+        from_attributes = True
+
+# Validation utilities
+class ValidationUtils:
+    @staticmethod
+    def validate_cnpj(cnpj: str) -> bool:
+        """Validate CNPJ using official algorithm."""
+        cnpj = re.sub(r'[^0-9]', '', cnpj)
+        if len(cnpj) != 14:
+            return False
+        
+        # CNPJ validation algorithm
+        # Implementation details omitted for brevity
+        return True
+    
+    @staticmethod
+    def validate_cpf(cpf: str) -> bool:
+        """Validate CPF using official algorithm."""
+        cpf = re.sub(r'[^0-9]', '', cpf)
+        if len(cpf) != 11:
+            return False
+        
+        # CPF validation algorithm
+        # Implementation details omitted for brevity
+        return True
+    
+    @staticmethod
+    def format_cnpj(cnpj: str) -> str:
+        """Format CNPJ with proper masking."""
+        cnpj = re.sub(r'[^0-9]', '', cnpj)
+        return re.sub(r'(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})', r'\1.\2.\3/\4-\5', cnpj)
+    
+    @staticmethod
+    def format_cpf(cpf: str) -> str:
+        """Format CPF with proper masking."""
+        cpf = re.sub(r'[^0-9]', '', cpf)
+        return re.sub(r'(\d{3})(\d{3})(\d{3})(\d{2})', r'\1.\2.\3-\4', cpf)
+    
+    @staticmethod
+    def format_phone(phone: str) -> str:
+        """Format Brazilian phone number."""
+        phone = re.sub(r'[^0-9]', '', phone)
+        if len(phone) == 11:
+            return re.sub(r'(\d{2})(\d{5})(\d{4})', r'(\1) \2-\3', phone)
+        elif len(phone) == 10:
+            return re.sub(r'(\d{2})(\d{4})(\d{4})', r'(\1) \2-\3', phone)
+        return phone
 ```
 
-#### 2.3 Organization Service
-Create `src/services/organization_service.py`:
+#### 2.3 Registration Service
+Create `src/services/client_registration_service.py`:
 
 ```python
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from ..models.organization import Organization
-from ..schemas.organization import OrganizationCreate, OrganizationUpdate
+from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
+from typing import Optional, Dict, Any
+import json
+import uuid
+from ..models.client_registration import (
+    RegistrationSession, CNPJRegistration, CPFRegistration, Address
+)
+from ..schemas.client_registration import (
+    RegistrationSessionCreate, RegistrationSessionOut,
+    CNPJRegistrationComplete, CNPJRegistrationOut,
+    CPFRegistrationComplete, CPFRegistrationOut,
+    ValidationUtils
+)
 from .base_service import BaseService
 
-class OrganizationService(BaseService):
+class ClientRegistrationService:
     def __init__(self):
-        super().__init__(Organization)
+        self.session_service = BaseService(RegistrationSession)
+        self.cnpj_service = BaseService(CNPJRegistration)
+        self.cpf_service = BaseService(CPFRegistration)
+        self.address_service = BaseService(Address)
     
-    async def create_organization(self, db: AsyncSession, org_data: OrganizationCreate) -> Organization:
-        # Check if CNPJ already exists
-        existing = await self.get_by_field(db, "cnpj", org_data.cnpj)
+    async def create_registration_session(
+        self, 
+        db: AsyncSession, 
+        registration_type: str
+    ) -> RegistrationSession:
+        """Create a new registration session."""
+        session_id = str(uuid.uuid4())
+        session_data = {
+            "session_id": session_id,
+            "registration_type": registration_type,
+            "step": 1,
+            "is_completed": False,
+            "data": None
+        }
+        
+        session = await self.session_service.create(db, session_data)
+        return session
+    
+    async def get_session(
+        self, 
+        db: AsyncSession, 
+        session_id: str
+    ) -> Optional[RegistrationSession]:
+        """Get registration session by ID."""
+        return await self.session_service.get_by_field(db, "session_id", session_id)
+    
+    async def update_session_data(
+        self, 
+        db: AsyncSession, 
+        session_id: str, 
+        step: int, 
+        data: Dict[str, Any]
+    ) -> RegistrationSession:
+        """Update session with form data."""
+        session = await self.get_session(db, session_id)
+        if not session:
+            raise ValueError("Registration session not found")
+        
+        update_data = {
+            "step": step,
+            "data": json.dumps(data)
+        }
+        
+        return await self.session_service.update(db, session.id, update_data)
+    
+    async def complete_cnpj_registration(
+        self, 
+        db: AsyncSession, 
+        registration_data: CNPJRegistrationComplete
+    ) -> CNPJRegistration:
+        """Complete CNPJ registration."""
+        # Validate CNPJ
+        if not ValidationUtils.validate_cnpj(registration_data.cnpj):
+            raise ValueError("Invalid CNPJ")
+        
+        # Check for existing CNPJ
+        existing = await self.cnpj_service.get_by_field(db, "cnpj", registration_data.cnpj)
         if existing:
-            raise ValueError("Organization with this CNPJ already exists")
+            raise ValueError("CNPJ already registered")
         
-        # Check if email already exists
-        if org_data.email:
-            existing = await self.get_by_field(db, "email", org_data.email)
-            if existing:
-                raise ValueError("Organization with this email already exists")
+        # Create address
+        address_data = {
+            "cep": registration_data.cep,
+            "endereco": registration_data.endereco,
+            "bairro": registration_data.bairro,
+            "cidade": registration_data.cidade,
+            "estado": registration_data.estado
+        }
+        address = await self.address_service.create(db, address_data)
         
-        return await self.create(db, org_data.dict())
+        # Create CNPJ registration
+        registration_dict = registration_data.dict()
+        registration_dict.pop("recaptcha_token")  # Don't store reCAPTCHA token
+        
+        return await self.cnpj_service.create(db, registration_dict)
     
-    async def get_organization_by_cnpj(self, db: AsyncSession, cnpj: str) -> Organization:
-        return await self.get_by_field(db, "cnpj", cnpj)
+    async def complete_cpf_registration(
+        self, 
+        db: AsyncSession, 
+        registration_data: CPFRegistrationComplete
+    ) -> CPFRegistration:
+        """Complete CPF registration."""
+        # Validate CPF
+        if not ValidationUtils.validate_cpf(registration_data.cpf):
+            raise ValueError("Invalid CPF")
+        
+        # Check for existing CPF
+        existing = await self.cpf_service.get_by_field(db, "cpf", registration_data.cpf)
+        if existing:
+            raise ValueError("CPF already registered")
+        
+        # Create address
+        address_data = {
+            "cep": registration_data.cep,
+            "endereco": registration_data.endereco,
+            "bairro": registration_data.bairro,
+            "cidade": registration_data.cidade,
+            "estado": registration_data.estado
+        }
+        address = await self.address_service.create(db, address_data)
+        
+        # Create CPF registration
+        registration_dict = registration_data.dict()
+        registration_dict.pop("recaptcha_token")  # Don't store reCAPTCHA token
+        
+        return await self.cpf_service.create(db, registration_dict)
+    
+    async def validate_document_uniqueness(
+        self, 
+        db: AsyncSession, 
+        document: str, 
+        document_type: str
+    ) -> Dict[str, Any]:
+        """Validate document uniqueness with real-time feedback."""
+        if document_type == "CNPJ":
+            existing = await self.cnpj_service.get_by_field(db, "cnpj", document)
+            return {
+                "valid": not existing,
+                "message": "CNPJ already registered" if existing else "CNPJ available"
+            }
+        elif document_type == "CPF":
+            existing = await self.cpf_service.get_by_field(db, "cpf", document)
+            return {
+                "valid": not existing,
+                "message": "CPF already registered" if existing else "CPF available"
+            }
+        return {"valid": False, "message": "Invalid document type"}
+
+class ViaCEPService:
+    """Service for ViaCEP API integration."""
+    
+    @staticmethod
+    async def get_address_by_cep(cep: str) -> Optional[Dict[str, str]]:
+        """Get address information from ViaCEP API."""
+        import httpx
+        
+        cep = re.sub(r'[^0-9]', '', cep)
+        if len(cep) != 8:
+            return None
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"https://viacep.com.br/ws/{cep}/json/")
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("erro"):
+                        return None
+                    return {
+                        "endereco": data.get("logradouro", ""),
+                        "bairro": data.get("bairro", ""),
+                        "cidade": data.get("localidade", ""),
+                        "estado": data.get("uf", "")
+                    }
+        except Exception:
+            return None
+        
+        return None
 ```
 
-#### 2.4 Organization API Routes
-Create `src/api/v1/organizations.py`:
+#### 2.4 Registration API Routes
+Create `src/api/v1/registration.py`:
 
 ```python
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Dict, Any, Optional
 from ...database import get_database
-from ...schemas.organization import OrganizationCreate, OrganizationUpdate, OrganizationOut
-from ...services.organization_service import OrganizationService
+from ...schemas.client_registration import (
+    RegistrationSessionCreate, RegistrationSessionOut,
+    CNPJStep1, CNPJStep2, CNPJRegistrationOut,
+    CPFStep1, CPFStep2, CPFRegistrationOut,
+    ValidationUtils
+)
+from ...services.client_registration_service import ClientRegistrationService, ViaCEPService
 
-router = APIRouter(prefix="/organizations", tags=["organizations"])
+router = APIRouter(prefix="/registration", tags=["registration"])
 
-@router.post("/", response_model=OrganizationOut, status_code=status.HTTP_201_CREATED)
-async def create_organization(
-    org_data: OrganizationCreate,
+@router.post("/session", response_model=RegistrationSessionOut)
+async def create_registration_session(
+    session_data: RegistrationSessionCreate,
     db: AsyncSession = Depends(get_database)
 ):
-    """Create a new organization"""
-    service = OrganizationService()
-    try:
-        return await service.create_organization(db, org_data)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    """Create a new registration session."""
+    service = ClientRegistrationService()
+    session = await service.create_registration_session(db, session_data.registration_type)
+    return session
 
-@router.get("/", response_model=list[OrganizationOut])
-async def list_organizations(
-    skip: int = 0,
-    limit: int = 100,
+@router.get("/session/{session_id}", response_model=RegistrationSessionOut)
+async def get_registration_session(
+    session_id: str,
     db: AsyncSession = Depends(get_database)
 ):
-    """List all organizations"""
-    service = OrganizationService()
-    return await service.list(db, skip=skip, limit=limit)
+    """Get registration session details."""
+    service = ClientRegistrationService()
+    session = await service.get_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Registration session not found")
+    return session
 
-@router.get("/{organization_id}", response_model=OrganizationOut)
-async def get_organization(
-    organization_id: str,
+# CNPJ Registration Endpoints
+@router.post("/cnpj/step1")
+async def validate_cnpj_step1(
+    session_id: str,
+    step1_data: CNPJStep1,
     db: AsyncSession = Depends(get_database)
 ):
-    """Get organization by ID"""
-    service = OrganizationService()
-    org = await service.get_by_id(db, organization_id)
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    return org
+    """Validate CNPJ step 1 data and store in session."""
+    service = ClientRegistrationService()
+    session = await service.get_session(db, session_id)
+    
+    if not session or session.registration_type != "CNPJ":
+        raise HTTPException(status_code=404, detail="Invalid registration session")
+    
+    # Validate CNPJ format
+    if not ValidationUtils.validate_cnpj(step1_data.cnpj):
+        raise HTTPException(status_code=400, detail="Invalid CNPJ format")
+    
+    # Check uniqueness
+    uniqueness_check = await service.validate_document_uniqueness(
+        db, step1_data.cnpj, "CNPJ"
+    )
+    if not uniqueness_check["valid"]:
+        raise HTTPException(status_code=400, detail=uniqueness_check["message"])
+    
+    # Store step 1 data
+    await service.update_session_data(db, session_id, 1, step1_data.dict())
+    
+    return {"message": "Step 1 validation successful", "next_step": 2}
 
-@router.put("/{organization_id}", response_model=OrganizationOut)
-async def update_organization(
-    organization_id: str,
-    org_data: OrganizationUpdate,
+@router.post("/cnpj/step2")
+async def complete_cnpj_registration(
+    session_id: str,
+    step2_data: CNPJStep2,
     db: AsyncSession = Depends(get_database)
 ):
-    """Update organization information"""
-    service = OrganizationService()
-    org = await service.update(db, organization_id, org_data.dict(exclude_unset=True))
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    return org
+    """Complete CNPJ registration."""
+    service = ClientRegistrationService()
+    session = await service.get_session(db, session_id)
+    
+    if not session or session.registration_type != "CNPJ":
+        raise HTTPException(status_code=404, detail="Invalid registration session")
+    
+    # Verify reCAPTCHA (implement with actual reCAPTCHA service)
+    # if not await verify_recaptcha(step2_data.recaptcha_token):
+    #     raise HTTPException(status_code=400, detail="reCAPTCHA verification failed")
+    
+    # Get stored step 1 data
+    if session.data:
+        step1_data = CNPJStep1(**json.loads(session.data))
+        complete_data = {**step1_data.dict(), **step2_data.dict()}
+        registration = await service.complete_cnpj_registration(db, CNPJRegistrationComplete(**complete_data))
+        
+        # Mark session as completed
+        await service.update_session_data(db, session_id, 2, {"completed": True})
+        
+        return {"message": "Registration completed successfully", "registration_id": registration.id}
+    
+    raise HTTPException(status_code=400, detail="Step 1 data not found")
 
-@router.delete("/{organization_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_organization(
-    organization_id: str,
+# CPF Registration Endpoints  
+@router.post("/cpf/step1")
+async def validate_cpf_step1(
+    session_id: str,
+    step1_data: CPFStep1,
     db: AsyncSession = Depends(get_database)
 ):
-    """Delete organization"""
-    service = OrganizationService()
-    success = await service.delete(db, organization_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Organization not found")
+    """Validate CPF step 1 data and store in session."""
+    service = ClientRegistrationService()
+    session = await service.get_session(db, session_id)
+    
+    if not session or session.registration_type != "CPF":
+        raise HTTPException(status_code=404, detail="Invalid registration session")
+    
+    # Validate CPF format
+    if not ValidationUtils.validate_cpf(step1_data.cpf):
+        raise HTTPException(status_code=400, detail="Invalid CPF format")
+    
+    # Check uniqueness
+    uniqueness_check = await service.validate_document_uniqueness(
+        db, step1_data.cpf, "CPF"
+    )
+    if not uniqueness_check["valid"]:
+        raise HTTPException(status_code=400, detail=uniqueness_check["message"])
+    
+    # Store step 1 data
+    await service.update_session_data(db, session_id, 1, step1_data.dict())
+    
+    return {"message": "Step 1 validation successful", "next_step": 2}
+
+@router.post("/cpf/step2")
+async def complete_cpf_registration(
+    session_id: str,
+    step2_data: CPFStep2,
+    db: AsyncSession = Depends(get_database)
+):
+    """Complete CPF registration."""
+    service = ClientRegistrationService()
+    session = await service.get_session(db, session_id)
+    
+    if not session or session.registration_type != "CPF":
+        raise HTTPException(status_code=404, detail="Invalid registration session")
+    
+    # Verify reCAPTCHA (implement with actual reCAPTCHA service)
+    # if not await verify_recaptcha(step2_data.recaptcha_token):
+    #     raise HTTPException(status_code=400, detail="reCAPTCHA verification failed")
+    
+    # Get stored step 1 data
+    if session.data:
+        step1_data = CPFStep1(**json.loads(session.data))
+        complete_data = {**step1_data.dict(), **step2_data.dict()}
+        registration = await service.complete_cpf_registration(db, CPFRegistrationComplete(**complete_data))
+        
+        # Mark session as completed
+        await service.update_session_data(db, session_id, 2, {"completed": True})
+        
+        return {"message": "Registration completed successfully", "registration_id": registration.id}
+    
+    raise HTTPException(status_code=400, detail="Step 1 data not found")
+
+# Utility Endpoints
+@router.get("/validate/document/{document_type}/{document}")
+async def validate_document_uniqueness(
+    document_type: str,
+    document: str,
+    db: AsyncSession = Depends(get_database)
+):
+    """Validate document uniqueness in real-time."""
+    service = ClientRegistrationService()
+    return await service.validate_document_uniqueness(db, document, document_type)
+
+@router.get("/address/cep/{cep}")
+async def get_address_by_cep(cep: str):
+    """Get address information by CEP."""
+    address = await ViaCEPService.get_address_by_cep(cep)
+    if not address:
+        raise HTTPException(status_code=404, detail="CEP not found")
+    return address
 ```
 
-#### 2.5 Organization Templates
-Create templates for organization management in `templates/organizations/`:
+#### 2.5 Mobile-First Registration Templates
+Create comprehensive registration templates in `templates/registration/`:
 
-**Base template**: `templates/base.html`
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Restaurant CRM{% endblock %}</title>
-    <!-- Include CSS framework -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50">
-    <nav class="bg-white shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex">
-                    <div class="flex-shrink-0 flex items-center">
-                        <h1 class="text-xl font-semibold">Restaurant CRM</h1>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
-    
-    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {% block content %}{% endblock %}
-    </main>
-    
-    {% block scripts %}{% endblock %}
-</body>
-</html>
-```
-
-**Organization form**: `templates/organizations/create.html`
+**Registration Type Selection**: `templates/registration/select-type.html`
 ```html
 {% extends "base.html" %}
 
-{% block title %}Register Organization - Restaurant CRM{% endblock %}
+{% block title %}Choose Registration Type - CompraJá!{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
-    <h1 class="text-2xl font-bold text-gray-900 mb-6">Register Your Restaurant</h1>
-    
-    <form hx-post="/organizations/" hx-target="#result" hx-swap="innerHTML" 
-          class="bg-white shadow-sm rounded-lg px-6 py-6 space-y-4">
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
         <div>
-            <label for="name" class="block text-sm font-medium text-gray-700">Company Name *</label>
-            <input type="text" id="name" name="name" required
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                Choose Registration Type
+            </h2>
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Select how you want to register on CompraJá!
+            </p>
         </div>
         
-        <div>
-            <label for="cnpj" class="block text-sm font-medium text-gray-700">CNPJ *</label>
-            <input type="text" id="cnpj" name="cnpj" required placeholder="00.000.000/0000-00"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                   hx-post="/api/v1/organizations/validate-cnpj" hx-trigger="blur">
-        </div>
-        
-        <div>
-            <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-            <input type="email" id="email" name="email"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-        </div>
-        
-        <div>
-            <label for="phone" class="block text-sm font-medium text-gray-700">Phone</label>
-            <input type="tel" id="phone" name="phone"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-        </div>
-        
-        <div>
-            <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
-            <textarea id="address" name="address" rows="3"
-                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-        </div>
-        
-        <div class="flex justify-end">
-            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                Register Organization
+        <div class="space-y-4">
+            <!-- CNPJ Option -->
+            <button hx-post="/registration/session" 
+                    hx-vals='{"registration_type": "CNPJ"}'
+                    hx-target="#result" 
+                    hx-swap="innerHTML"
+                    class="w-full flex flex-col items-center p-6 border-2 border-gray-300 rounded-lg hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                <div class="text-4xl mb-2">🏢</div>
+                <h3 class="text-lg font-medium text-gray-900">Company Registration</h3>
+                <p class="text-sm text-gray-500 text-center mt-1">Register your restaurant or business with CNPJ</p>
+            </button>
+            
+            <!-- CPF Option -->
+            <button hx-post="/registration/session" 
+                    hx-vals='{"registration_type": "CPF"}'
+                    hx-target="#result" 
+                    hx-swap="innerHTML"
+                    class="w-full flex flex-col items-center p-6 border-2 border-gray-300 rounded-lg hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                <div class="text-4xl mb-2">👤</div>
+                <h3 class="text-lg font-medium text-gray-900">Personal Registration</h3>
+                <p class="text-sm text-gray-500 text-center mt-1">Register as an individual with CPF</p>
             </button>
         </div>
-    </form>
-    
-    <div id="result"></div>
+        
+        <div id="result" class="text-center"></div>
+    </div>
+</div>
+
+<!-- Loading indicator -->
+<div id="loading" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+        <p class="mt-2 text-sm text-gray-600">Processing...</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('htmx:beforeRequest', function(e) {
+    if (e.detail.elt.tagName === 'BUTTON') {
+        document.getElementById('loading').classList.remove('hidden');
+    }
+});
+
+document.addEventListener('htmx:afterRequest', function(e) {
+    document.getElementById('loading').classList.add('hidden');
+});
+</script>
+{% endblock %}
+```
+
+**CNPJ Step 1**: `templates/registration/cnpj-step1.html`
+```html
+{% extends "base.html" %}
+
+{% block title %}Company Registration - Step 1 - CompraJá!{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Progress Indicator -->
+    <div class="mb-8">
+        <nav aria-label="Progress">
+            <ol class="flex items-center">
+                <li class="relative flex-1 after:content-[''] after:absolute after:top-4 after:w-full after:h-0.5 after:bg-indigo-600 after:-right-1/2">
+                    <div class="relative w-8 h-8 flex items-center justify-center bg-indigo-600 text-white text-sm font-medium rounded-full">1</div>
+                    <span class="absolute top-10 left-0 text-sm text-indigo-600 font-medium">Business Info</span>
+                </li>
+                <li class="relative flex-1">
+                    <div class="relative w-8 h-8 flex items-center justify-center bg-gray-300 text-gray-500 text-sm font-medium rounded-full">2</div>
+                    <span class="absolute top-10 left-0 text-sm text-gray-500">Address</span>
+                </li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h1 class="text-2xl font-bold text-gray-900 mb-6">Business Information</h1>
+            
+            <form hx-post="/registration/cnpj/step1" 
+                  hx-vals='{"session_id": "{{ session_id }}"}'
+                  hx-target="#result" 
+                  hx-swap="innerHTML"
+                  class="space-y-6">
+                
+                <!-- Business Type -->
+                <div>
+                    <label for="qual_seu_negocio" class="block text-sm font-medium text-gray-700">What is your business? *</label>
+                    <select id="qual_seu_negocio" name="qual_seu_negocio" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">Select business type</option>
+                        <option value="Academia">Academia</option>
+                        <option value="Adega">Adega</option>
+                        <option value="Bar">Bar</option>
+                        <option value="Bomboniere">Bomboniere</option>
+                        <option value="Cantina">Cantina</option>
+                        <option value="Clube esportivo">Clube esportivo</option>
+                        <option value="Condomínio">Condomínio</option>
+                        <option value="Confeitaria">Confeitaria</option>
+                        <option value="Doceria">Doceria</option>
+                        <option value="Dogueiro">Dogueiro</option>
+                        <option value="Escola">Escola</option>
+                        <option value="Food service">Food service</option>
+                        <option value="Hotel">Hotel</option>
+                        <option value="Instituição religiosa">Instituição religiosa</option>
+                        <option value="Lanchonete">Lanchonete</option>
+                        <option value="Mercearia">Mercearia</option>
+                        <option value="Mini mercado">Mini mercado</option>
+                        <option value="Padaria">Padaria</option>
+                        <option value="Pastelaria">Pastelaria</option>
+                        <option value="Pizzaria">Pizzaria</option>
+                        <option value="Restaurante">Restaurante</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+                
+                <!-- CNPJ -->
+                <div>
+                    <label for="cnpj" class="block text-sm font-medium text-gray-700">CNPJ *</label>
+                    <input type="text" 
+                           id="cnpj" 
+                           name="cnpj" 
+                           required 
+                           placeholder="00.000.000/0000-00"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                           hx-get="/registration/validate/document/CNPJ"
+                           hx-trigger="blur"
+                           hx-target="#cnpj-error"
+                           hx-swap="innerHTML">
+                    <div id="cnpj-error" class="mt-1 text-sm text-red-600"></div>
+                </div>
+                
+                <!-- Company Name -->
+                <div>
+                    <label for="razao_social" class="block text-sm font-medium text-gray-700">Company Legal Name *</label>
+                    <input type="text" 
+                           id="razao_social" 
+                           name="razao_social" 
+                           required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                
+                <!-- Your Name -->
+                <div>
+                    <label for="seu_nome" class="block text-sm font-medium text-gray-700">Your Name *</label>
+                    <input type="text" 
+                           id="seu_nome" 
+                           name="seu_nome" 
+                           required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                
+                <!-- Your Role -->
+                <div>
+                    <label for="sua_funcao" class="block text-sm font-medium text-gray-700">Your Role in the Company *</label>
+                    <select id="sua_funcao" name="sua_funcao" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">Select your role</option>
+                        <option value="Proprietário">Proprietário</option>
+                        <option value="Gerente">Gerente</option>
+                        <option value="Estoquista">Estoquista</option>
+                    </select>
+                </div>
+                
+                <!-- Email -->
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email *</label>
+                    <input type="email" 
+                           id="email" 
+                           name="email" 
+                           required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                
+                <!-- Mobile -->
+                <div>
+                    <label for="celular" class="block text-sm font-medium text-gray-700">Mobile Phone *</label>
+                    <input type="tel" 
+                           id="celular" 
+                           name="celular" 
+                           required
+                           placeholder="(11) 99999-9999"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                
+                <!-- Terms and Marketing -->
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <input id="terms_accepted" 
+                               name="terms_accepted" 
+                               type="checkbox" 
+                               required
+                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1">
+                        <label for="terms_accepted" class="ml-3 block text-sm text-gray-700">
+                            I agree to the <a href="#" class="text-indigo-600 hover:text-indigo-500">Privacy Policy</a> *
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <input id="marketing_opt_in" 
+                               name="marketing_opt_in" 
+                               type="checkbox"
+                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1">
+                        <label for="marketing_opt_in" class="ml-3 block text-sm text-gray-700">
+                            I want to receive emails with promotions and material from CompraJá! and its partners
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Navigation -->
+                <div class="flex justify-between pt-6">
+                    <a href="/registration/select-type" 
+                       class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Back
+                    </a>
+                    <button type="submit" 
+                            class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Continue to Address
+                    </button>
+                </div>
+            </form>
+            
+            <div id="result" class="mt-4"></div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -913,9 +1569,124 @@ document.getElementById('cnpj').addEventListener('input', function(e) {
     let formatted = value.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
     e.target.value = formatted;
 });
+
+// Mobile formatting
+document.getElementById('celular').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length <= 11) {
+        value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    }
+    e.target.value = value;
+});
 </script>
 {% endblock %}
 ```
+
+**Reusable Address Component**: `templates/components/address-form.html`
+```html
+<!-- Reusable Address Form Component -->
+<div class="space-y-4">
+    <div>
+        <label for="cep" class="block text-sm font-medium text-gray-700">CEP *</label>
+        <input type="text" 
+               id="cep" 
+               name="cep" 
+               required
+               placeholder="00000-000"
+               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+               hx-get="/registration/address/cep"
+               hx-trigger="blur"
+               hx-target="#address-fields"
+               hx-swap="innerHTML">
+    </div>
+    
+    <div id="address-fields" class="space-y-4">
+        <div>
+            <label for="endereco" class="block text-sm font-medium text-gray-700">Address *</label>
+            <input type="text" 
+                   id="endereco" 
+                   name="endereco" 
+                   required
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+        
+        <div>
+            <label for="bairro" class="block text-sm font-medium text-gray-700">Neighborhood *</label>
+            <input type="text" 
+                   id="bairro" 
+                   name="bairro" 
+                   required
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+        
+        <div>
+            <label for="cidade" class="block text-sm font-medium text-gray-700">City *</label>
+            <input type="text" 
+                   id="cidade" 
+                   name="cidade" 
+                   required
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+        
+        <div>
+            <label for="estado" class="block text-sm font-medium text-gray-700">State *</label>
+            <select id="estado" name="estado" required
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="">Select state</option>
+                <option value="AC">Acre</option>
+                <option value="AL">Alagoas</option>
+                <option value="AP">Amapá</option>
+                <option value="AM">Amazonas</option>
+                <option value="BA">Bahia</option>
+                <option value="CE">Ceará</option>
+                <option value="DF">Distrito Federal</option>
+                <option value="ES">Espírito Santo</option>
+                <option value="GO">Goiás</option>
+                <option value="MA">Maranhão</option>
+                <option value="MT">Mato Grosso</option>
+                <option value="MS">Mato Grosso do Sul</option>
+                <option value="MG">Minas Gerais</option>
+                <option value="PA">Pará</option>
+                <option value="PB">Paraíba</option>
+                <option value="PR">Paraná</option>
+                <option value="PE">Pernambuco</option>
+                <option value="PI">Piauí</option>
+                <option value="RJ">Rio de Janeiro</option>
+                <option value="RN">Rio Grande do Norte</option>
+                <option value="RS">Rio Grande do Sul</option>
+                <option value="RO">Rondônia</option>
+                <option value="RR">Roraima</option>
+                <option value="SC">Santa Catarina</option>
+                <option value="SP">São Paulo</option>
+                <option value="SE">Sergipe</option>
+                <option value="TO">Tocantins</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<script>
+// CEP formatting
+document.getElementById('cep').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length <= 8) {
+        value = value.replace(/(\d{5})(\d{3})/, '$1-$2');
+    }
+    e.target.value = value;
+});
+</script>
+```
+
+This comprehensive Stage 2 implementation provides:
+1. **Dual Registration Flows**: Separate CNPJ and CPF registration processes
+2. **Multi-step Forms**: Progressive validation with step indicators
+3. **Mobile-First Design**: Responsive UI optimized for mobile devices
+4. **HTMX Integration**: Dynamic form validation and progress
+5. **External API Integration**: ViaCEP for address auto-fill
+6. **Anti-bot Protection**: reCAPTCHA integration framework
+7. **Reusable Components**: Address form and consent blocks
+8. **Comprehensive Validation**: CPF/CNPJ validation and uniqueness checks
+9. **Professional UI**: Clean, accessible design with proper UX patterns
 
 ---
 

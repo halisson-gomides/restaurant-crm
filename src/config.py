@@ -32,6 +32,10 @@ class Settings(BaseSettings):
         default="Restaurant CRM",
         description="CRM para Restaurantes"
     )
+    company_name: str = Field(
+        default="CompraJá!",
+        description="Nome da empresa cliente"
+    )
     debug: bool = Field(
         default=True,
         description="Debug mode flag"

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro Concluído - CompraJá!{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full text-center">
+        <!-- Success Icon -->
+        <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100">
+            <svg class="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+        
+        <h2 class="mt-6 text-3xl font-extrabold text-gray-900">
+            Cadastro Concluído!
+        </h2>
+        
+        <p class="mt-2 text-sm text-gray-600">
+            {% if registration_type == 'CNPJ' %}
+                Sua empresa foi cadastrada com sucesso no sistema CompraJá!
+            {% else %}
+                Seu cadastro foi concluído com sucesso no sistema CompraJá!
+            {% endif %}
+        </p>
+        
+        <!-- Registration Details -->
+        <div class="mt-8 bg-white shadow rounded-lg p-6 text-left">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Detalhes do Cadastro</h3>
+            
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Tipo de Cadastro</dt>
+                    <dd class="text-sm text-gray-900">
+                        {% if registration_type == 'CNPJ' %}
+                            Pessoa Jurídica (CNPJ)
+                        {% else %}
+                            Pessoa Física (CPF)
+                        {% endif %}
+                    </dd>
+                </div>
+                
+                {% if registration_data %}
+                    {% if registration_type == 'CNPJ' %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Empresa</dt>
+                            <dd class="text-sm text-gray-900">{{ registration_data.razao_social or registration_data.nome }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">CNPJ</dt>
+                            <dd class="text-sm text-gray-900">{{ registration_data.cnpj }}</dd>
+                        </div>
+                    {% else %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Nome</dt>
+                            <dd class="text-sm text-gray-900">{{ registration_data.nome_completo or registration_data.nome }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">CPF</dt>
+                            <dd class="text-sm text-gray-900">{{ registration_data.cpf }}</dd>
+                        </div>
+                    {% endif %}
+                    
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">E-mail</dt>
+                        <dd class="text-sm text-gray-900">{{ registration_data.email }}</dd>
+                    </div>
+                {% endif %}
+                
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Data de Cadastro</dt>
+                    <dd class="text-sm text-gray-900">{{ created_at }}</dd>
+                </div>
+            </dl>
+        </div>
+        
+        <!-- Next Steps -->
+        <div class="mt-8 bg-blue-50 rounded-lg p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-blue-400"></i>
+                </div>
+                <div class="ml-3 text-left">
+                    <h3 class="text-sm font-medium text-blue-800">
+                        Próximos Passos
+                    </h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p>
+                            {% if registration_type == 'CNPJ' %}
+                                Agora você pode configurar sua conta e começar a usar o sistema para gerenciar compras e estoque da sua empresa.
+                            {% else %}
+                                Agora você pode fazer login e começar a usar o sistema para suas compras pessoais ou de negócio.
+                            {% endif %}
+                        </p>
+                        <ul class="mt-2 list-disc list-inside space-y-1">
+                            <li>Faça login com suas credenciais</li>
+                            <li>Configure seu perfil</li>
+                            <li>Comece a usar o sistema</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="mt-8 space-y-4">
+            <a href="/auth/login" 
+               class="w-full inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                <i class="fas fa-sign-in-alt mr-2"></i>
+                Fazer Login
+            </a>
+            
+            <a href="/" 
+               class="w-full inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <i class="fas fa-home mr-2"></i>
+                Voltar ao Início
+            </a>
+        </div>
+        
+        <!-- Contact Info -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+            <p class="text-sm text-gray-500">
+                Precisa de ajuda? Entre em contato conosco:
+            </p>
+            <div class="mt-2 flex justify-center space-x-6">
+                <a href="mailto:suporte@comprajai.com.br" 
+                   class="text-sm text-indigo-600 hover:text-indigo-500">
+                    <i class="fas fa-envelope mr-1"></i>
+                    suporte@comprajai.com.br
+                </a>
+                <span class="text-sm text-gray-400">|</span>
+                <a href="tel:+5511999999999" 
+                   class="text-sm text-indigo-600 hover:text-indigo-500">
+                    <i class="fas fa-phone mr-1"></i>
+                    (11) 9999-9999
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confetti Animation -->
+<div id="confetti" class="fixed inset-0 pointer-events-none z-50">
+    <!-- Confetti elements will be added here by JavaScript -->
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Simple confetti animation
+function createConfetti() {
+    const confettiContainer = document.getElementById('confetti');
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    
+    for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        confetti.style.position = 'absolute';
+        confetti.style.width = '10px';
+        confetti.style.height = '10px';
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.left = Math.random() * 100 + '%';
+        confetti.style.top = '-10px';
+        confetti.style.opacity = '1';
+        confetti.style.transform = 'rotate(' + Math.random() * 360 + 'deg)';
+        confetti.style.borderRadius = '50%';
+        
+        confettiContainer.appendChild(confetti);
+        
+        // Animate confetti
+        const animation = confetti.animate([
+            { transform: confetti.style.transform, opacity: 1 },
+            { transform: 'translateY(100vh) rotate(720deg)', opacity: 0 }
+        ], {
+            duration: 3000 + Math.random() * 2000,
+            easing: 'ease-out'
+        });
+        
+        animation.onfinish = () => {
+            confetti.remove();
+        };
+    }
+}
+
+// Start confetti animation when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(createConfetti, 500);
+});
+</script>
+{% endblock %}
