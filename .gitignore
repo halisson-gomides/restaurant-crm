@@ -8,6 +8,7 @@ wheels/
 .env
 uv.lock
 tests/
+htmlcov/
 
 # Virtual environments
 .venv

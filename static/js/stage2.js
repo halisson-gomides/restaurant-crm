@@ -167,6 +167,11 @@
             }
         });
 
+        // Add formatCEP on input for CEP field
+        $(document).on('input', '#cep', function() {
+            this.value = window.formatCEP(this.value);
+        });
+
         // Show loading indicator for HTMX requests
         $(document).on('htmx:beforeRequest', 'form', function() {
             $(this).find('button[type="submit"]').prop('disabled', true).addClass('opacity-50');
@@ -206,14 +211,14 @@
 
     // Address lookup using ViaCEP
     function getAddressByCEP(cep) {
-        const $addressFields = $('#address-fields');
-        
-        // Show loading state
-        if ($addressFields.length === 0) {
-            $addressFields = $('<div id="address-fields" class="space-y-4"></div>');
+        // Manually show loading overlay for CEP lookup
+        const overlay = document.getElementById('loading-overlay');
+        const text = overlay.querySelector('span');
+        if (text) {
+            text.textContent = 'Carregando endereço...';
         }
-        
-        $addressFields.html('<div class="text-sm text-gray-500">Carregando endereço...</div>');
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
         
         $.ajax({
             url: `/registration/address/cep/${cep}`,
@@ -221,16 +226,62 @@
             dataType: 'json',
             timeout: 10000,
             success: function(data) {
-                if (data.html) {
-                    $addressFields.html(data.html);
+                // Hide loading overlay
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+                
+                if (data.success) {
+                    // Auto-fill address fields individually
+                    $('#endereco').val(data.endereco || '').trigger('change');
+                    $('#bairro').val(data.bairro || '').trigger('change');
+                    $('#cidade').val(data.cidade || '').trigger('change');
+                    $('#estado').val(data.estado || '').trigger('change');
+                    
+                    // Show success toast
+                    showToast('success', 'Endereço encontrado e preenchido automaticamente!');
+                    
+                    // Focus on next field
+                    $('#endereco').focus();
                 } else {
-                    $addressFields.html('<div class="text-sm text-red-600">CEP não encontrado. Por favor, preencha manualmente.</div>');
+                    // Show error toast
+                    showToast('error', data.error || 'CEP não encontrado. Por favor, preencha manualmente.');
                 }
             },
-            error: function() {
-                $addressFields.html('<div class="text-sm text-red-600">Erro ao buscar CEP. Por favor, tente novamente.</div>');
+            error: function(xhr, status, error) {
+                // Hide loading overlay
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+                
+                console.error('Erro na busca do CEP:', error);
+                showToast('error', 'Erro ao buscar CEP. Por favor, tente novamente.');
             }
         });
+    }
+    
+    // Show toast message
+    function showToast(type, message) {
+        // Create toast element
+        const toast = $(`
+            <div class="fixed top-4 right-4 ${type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white px-4 py-2 rounded shadow-lg z-50 transition-all duration-300">
+                <div class="flex items-center">
+                    <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'} mr-2"></i>
+                    <span>${message}</span>
+                    <button onclick="$(this).parent().parent().remove()" class="ml-4 text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `);
+        
+        // Add to page
+        $('body').append(toast);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(function() {
+            toast.fadeOut(300, function() {
+                $(this).remove();
+            });
+        }, 5000);
     }
 
     // Error handling functions

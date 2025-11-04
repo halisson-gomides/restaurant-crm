@@ -53,7 +53,7 @@ async def get_registration_session(
     if not session:
         raise HTTPException(status_code=404, detail="Registration session not found")
     
-    return RegistrationSessionOut.from_orm(session)
+    return RegistrationSessionOut.model_validate(session)
 
 
 # CNPJ Registration Endpoints
@@ -74,7 +74,7 @@ async def validate_cnpj_step1(
         # Validate CNPJ format
         clean_cnpj = step1_data.cnpj.replace('.', '').replace('/', '').replace('-', '')
         if not service.validate_document_uniqueness(db, clean_cnpj, "CNPJ").valid:
-            return {"success": False, "error": "CNPJ already registered"}
+            return {"success": False, "error": "CNPJ já registrado"}
         
         # Store step 1 data
         await service.update_session_data(db, session_id, 1, step1_data.dict())
@@ -83,7 +83,7 @@ async def validate_cnpj_step1(
             "success": True, 
             "message": "Step 1 validation successful", 
             "next_step": 2,
-            "data": step1_data.dict()
+            "data": step1_data.model_dump()
         }
     except Exception as e:
         return {"success": False, "error": f"Validation error: {str(e)}"}
@@ -110,7 +110,7 @@ async def complete_cnpj_registration(
         # Get stored step 1 data
         if session.data:
             step1_data = CNPJStep1(**json.loads(session.data))
-            complete_data = {**step1_data.dict(), **step2_data.dict()}
+            complete_data = {**step1_data.model_dump(), **step2_data.model_dump()}
             registration = await service.complete_cnpj_registration(db, CNPJRegistrationComplete(**complete_data))
             
             # Mark session as completed
@@ -146,16 +146,16 @@ async def validate_cpf_step1(
         # Validate CPF format
         clean_cpf = step1_data.cpf.replace('.', '').replace('-', '')
         if not service.validate_document_uniqueness(db, clean_cpf, "CPF").valid:
-            return {"success": False, "error": "CPF already registered"}
+            return {"success": False, "error": "CPF já registrado"}
         
         # Store step 1 data
-        await service.update_session_data(db, session_id, 1, step1_data.dict())
+        await service.update_session_data(db, session_id, 1, step1_data.model_dump())
         
         return {
             "success": True, 
             "message": "Step 1 validation successful", 
             "next_step": 2,
-            "data": step1_data.dict()
+            "data": step1_data.model_dump()
         }
     except Exception as e:
         return {"success": False, "error": f"Validation error: {str(e)}"}
@@ -182,7 +182,7 @@ async def complete_cpf_registration(
         # Get stored step 1 data
         if session.data:
             step1_data = CPFStep1(**json.loads(session.data))
-            complete_data = {**step1_data.dict(), **step2_data.dict()}
+            complete_data = {**step1_data.model_dump(), **step2_data.model_dump()}
             registration = await service.complete_cpf_registration(db, CPFRegistrationComplete(**complete_data))
             
             # Mark session as completed
@@ -212,77 +212,42 @@ async def validate_document_uniqueness(
     return await service.validate_document_uniqueness(db, document, document_type)
 
 
-@router.get("/address/cep/{cep}", response_model=Dict[str, Any])
+@router.get("/address/cep/{cep}")
 async def get_address_by_cep(cep: str):
-    """Get address information by CEP and return HTML fragment."""
-    address = await ViaCEPService.get_address_by_cep(cep)
-    if not address:
-        # Return empty fields when CEP not found
+    """Get address information by CEP and return JSON data."""
+    try:
+        # Clean CEP format
+        clean_cep = cep.replace("-", "").replace(".", "").strip()
+        
+        if len(clean_cep) != 8:
+            return {
+                "success": False,
+                "error": "CEP deve conter 8 dígitos"
+            }
+        
+        address = await ViaCEPService.get_address_by_cep(clean_cep)
+        if not address:
+            # Return empty data when CEP not found
+            return {
+                "success": False,
+                "error": "CEP não encontrado. Por favor, digite o endereço manualmente."
+            }
+        
+        # Return address data as JSON
         return {
-            "html": """
-                <div class="text-sm text-red-600">
-                    CEP não encontrado. Por favor, digite o endereço manualmente.
-                </div>
-            """
+            "success": True,
+            "endereco": address.endereco or "",
+            "bairro": address.bairro or "",
+            "cidade": address.cidade or "",
+            "estado": address.estado or ""
         }
-    
-    # Return HTML fragment for address fields
-    html = f"""
-        <div>
-            <label for="endereco" class="block text-sm font-medium text-gray-700">Endereço *</label>
-            <input type="text" id="endereco" name="endereco" required
-                   value="{address.endereco if address else ''}"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-        </div>
-        <div>
-            <label for="bairro" class="block text-sm font-medium text-gray-700">Bairro *</label>
-            <input type="text" id="bairro" name="bairro" required
-                   value="{address.bairro if address else ''}"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-        </div>
-        <div>
-            <label for="cidade" class="block text-sm font-medium text-gray-700">Cidade *</label>
-            <input type="text" id="cidade" name="cidade" required
-                   value="{address.cidade if address else ''}"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-        </div>
-        <div>
-            <label for="estado" class="block text-sm font-medium text-gray-700">Estado *</label>
-            <select id="estado" name="estado" required
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="">Selecione o estado</option>
-                <option value="AC" {"selected" if address and address.estado == 'AC' else ""}>Acre</option>
-                <option value="AL" {"selected" if address and address.estado == 'AL' else ""}>Alagoas</option>
-                <option value="AP" {"selected" if address and address.estado == 'AP' else ""}>Amapá</option>
-                <option value="AM" {"selected" if address and address.estado == 'AM' else ""}>Amazonas</option>
-                <option value="BA" {"selected" if address and address.estado == 'BA' else ""}>Bahia</option>
-                <option value="CE" {"selected" if address and address.estado == 'CE' else ""}>Ceará</option>
-                <option value="DF" {"selected" if address and address.estado == 'DF' else ""}>Distrito Federal</option>
-                <option value="ES" {"selected" if address and address.estado == 'ES' else ""}>Espírito Santo</option>
-                <option value="GO" {"selected" if address and address.estado == 'GO' else ""}>Goiás</option>
-                <option value="MA" {"selected" if address and address.estado == 'MA' else ""}>Maranhão</option>
-                <option value="MT" {"selected" if address and address.estado == 'MT' else ""}>Mato Grosso</option>
-                <option value="MS" {"selected" if address and address.estado == 'MS' else ""}>Mato Grosso do Sul</option>
-                <option value="MG" {"selected" if address and address.estado == 'MG' else ""}>Minas Gerais</option>
-                <option value="PA" {"selected" if address and address.estado == 'PA' else ""}>Pará</option>
-                <option value="PB" {"selected" if address and address.estado == 'PB' else ""}>Paraíba</option>
-                <option value="PR" {"selected" if address and address.estado == 'PR' else ""}>Paraná</option>
-                <option value="PE" {"selected" if address and address.estado == 'PE' else ""}>Pernambuco</option>
-                <option value="PI" {"selected" if address and address.estado == 'PI' else ""}>Piauí</option>
-                <option value="RJ" {"selected" if address and address.estado == 'RJ' else ""}>Rio de Janeiro</option>
-                <option value="RN" {"selected" if address and address.estado == 'RN' else ""}>Rio Grande do Norte</option>
-                <option value="RS" {"selected" if address and address.estado == 'RS' else ""}>Rio Grande do Sul</option>
-                <option value="RO" {"selected" if address and address.estado == 'RO' else ""}>Rondônia</option>
-                <option value="RR" {"selected" if address and address.estado == 'RR' else ""}>Roraima</option>
-                <option value="SC" {"selected" if address and address.estado == 'SC' else ""}>Santa Catarina</option>
-                <option value="SP" {"selected" if address and address.estado == 'SP' else ""}>São Paulo</option>
-                <option value="SE" {"selected" if address and address.estado == 'SE' else ""}>Sergipe</option>
-                <option value="TO" {"selected" if address and address.estado == 'TO' else ""}>Tocantins</option>
-            </select>
-        </div>
-    """
-    
-    return {"html": html}
+    except Exception as e:
+        # Log error for debugging
+        print(f"Error fetching address for CEP {cep}: {str(e)}")
+        return {
+            "success": False,
+            "error": "Erro interno ao buscar endereço. Tente novamente."
+        }
 
 
 @router.get("/stats")
@@ -342,17 +307,31 @@ async def htmx_cnpj_step1(
         await service.update_session_data(db, session_id, 1, step1_data.model_dump())
         
         # Get address form HTML
-        address_form_html = await get_address_form_html(session_id, "cnpj")
+        address_form_html = get_address_form_html("cnpj")
 
         # Return HTML fragment for step 2
         html_parts = [
+            '<div class="bg-white shadow-sm rounded-lg p-6">',
+            '<div class="mb-6">',
+                '<div class="flex items-center mb-4">',
+                    '<div class="flex-shrink-0">',
+                        '<div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">',
+                            '<i class="fas fa-building text-blue-600"></i>',
+                        '</div>',
+                    '</div>',
+                    '<div class="ml-4">',
+                        '<h3 class="text-lg font-medium text-gray-900">Cadastro Empresa (CNPJ)</h3>',
+                        '<p class="text-sm text-gray-500">Etapa 2 de 2: Informações de Endereço</p>',
+                    '</div>',
+                '</div>',
+            '</div>',
             '<div id="step2-form" class="mt-6">',
-            '<h3 class="text-lg font-medium text-gray-900 mb-4">Informações de Endereço</h3>',
             '<p class="text-sm text-gray-600 mb-4">Por favor, forneça as informações de endereço da sua empresa.</p>',
             f'<div id="address-form" class="space-y-4">{address_form_html}</div>',
             '<div class="mt-6 flex justify-between">',
             f'<button type="button" hx-post="/registration/htmx/cnpj-back-step1" hx-vals=\'{{"session_id": "{session_id}"}}\' hx-target="#registration-form" hx-swap="innerHTML" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Voltar</button>',
             f'<button type="button" onclick="submitCNPJStep2(\'{session_id}\')" class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">Finalizar Cadastro</button>',
+            '</div>',
             '</div>',
             '</div>'
         ]
@@ -406,27 +385,38 @@ async def htmx_cpf_step1(
             }
         
         # Store step 1 data
-        await service.update_session_data(db, session_id, 1, step1_data.dict())
+        await service.update_session_data(db, session_id, 1, step1_data.model_dump())
         
         # Get address form HTML
-        address_form_html = await get_address_form_html(session_id, "cpf")
+        address_form_html = get_address_form_html("cpf")
 
         # Return HTML fragment for step 2
         html_parts = [
+            '<div class="bg-white shadow-sm rounded-lg p-6">',
+            '<div class="mb-6">',
+                '<div class="flex items-center mb-4">',
+                    '<div class="flex-shrink-0">',
+                        '<div class="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">',
+                            '<i class="fas fa-user text-green-600"></i>',
+                        '</div>',
+                    '</div>',
+                    '<div class="ml-4">',
+                        '<h3 class="text-lg font-medium text-gray-900">Cadastro Pessoal (CPF)</h3>',
+                        '<p class="text-sm text-gray-500">Etapa 2 de 2: Informações Complementares e Endereço</p>',
+                    '</div>',
+                '</div>',
+            '</div>',
             '<div id="step2-form" class="mt-6">',
-            '<h3 class="text-lg font-medium text-gray-900 mb-4">Informações Pessoais e Endereço</h3>',
             f'<div id="address-form" class="space-y-4">{address_form_html}</div>',
             '<div class="mt-6 flex justify-between">',
             f'<button type="button" hx-post="/registration/htmx/cpf-back-step1" hx-vals=\'{{"session_id": "{session_id}"}}\' hx-target="#registration-form" hx-swap="innerHTML" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Voltar</button>',
-            f'<button type="button" onclick="submitStep2(\'{session_id}\')" class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">Finalizar Cadastro</button>',
+            f'<button type="button" onclick="submitStep2(\'{session_id}\')" class="form-button-primary">Finalizar Cadastro</button>',
+            '</div>',
             '</div>',
             '</div>'
         ]
 
-        return {
-            "success": True,
-            "html": ''.join(html_parts)
-        }
+        return HTMLResponse(content=''.join(html_parts))
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -518,46 +508,49 @@ async def htmx_cpf_back_step1(
                         clean_data[key] = value
                 
                 form_html = get_cpf_step1_form_with_data(session_id, clean_data)
-                return {
-                    "success": True,
-                    "html": form_html
-                }
+                return HTMLResponse(content=form_html)
+                # return {
+                #     "success": True,
+                #     "html": form_html
+                # }
             except (json.JSONDecodeError, UnicodeDecodeError) as e:
                 # If JSON parsing fails, return fresh form
                 form_html = get_cpf_step1_form(session_id)
-                return {
-                    "success": True,
-                    "html": form_html
-                }
+                return HTMLResponse(content=form_html)
+                # return {
+                #     "success": True,
+                #     "html": form_html
+                # }
         else:
             # If no data, return fresh form
             form_html = get_cpf_step1_form(session_id)
-            return {
-                "success": True,
-                "html": form_html
-            }
+            return HTMLResponse(content=form_html)
+            # return {
+            #     "success": True,
+            #     "html": form_html
+            # }
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 
 # Helper function to generate address form HTML
-async def get_address_form_html(session_id: str, registration_type: str) -> str:
+def get_address_form_html(registration_type: str) -> str:
     """Generate address form HTML fragment."""
     html_parts = [
         '<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">',
-        '<div class="sm:col-span-2"><label for="cep" class="block text-sm font-medium text-gray-700">CEP *</label><input type="text" id="cep" name="cep" required placeholder="00000-000" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" hx-get="/registration/address/cep" hx-trigger="blur" hx-target="#address-fields" hx-swap="innerHTML"></div>',
+        '<div class="sm:col-span-2"><label for="cep" class="form-label">CEP *</label><input type="text" id="cep" name="cep" required placeholder="00000-000" class="form-input"></div>',
         '<div id="address-fields" class="sm:col-span-2 space-y-4">',
-        '<div><label for="endereco" class="block text-sm font-medium text-gray-700">Endereço *</label><input type="text" id="endereco" name="endereco" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></div>',
-        '<div><label for="bairro" class="block text-sm font-medium text-gray-700">Bairro *</label><input type="text" id="bairro" name="bairro" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></div>',
-        '<div><label for="cidade" class="block text-sm font-medium text-gray-700">Cidade *</label><input type="text" id="cidade" name="cidade" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></div>',
-        '<div><label for="estado" class="block text-sm font-medium text-gray-700">Estado *</label><select id="estado" name="estado" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"><option value="">Selecione o estado</option><option value="AC">Acre</option><option value="AL">Alagoas</option><option value="AP">Amapá</option><option value="AM">Amazonas</option><option value="BA">Bahia</option><option value="CE">Ceará</option><option value="DF">Distrito Federal</option><option value="ES">Espírito Santo</option><option value="GO">Goiás</option><option value="MA">Maranhão</option><option value="MT">Mato Grosso</option><option value="MS">Mato Grosso do Sul</option><option value="MG">Minas Gerais</option><option value="PA">Pará</option><option value="PB">Paraíba</option><option value="PR">Paraná</option><option value="PE">Pernambuco</option><option value="PI">Piauí</option><option value="RJ">Rio de Janeiro</option><option value="RN">Rio Grande do Norte</option><option value="RS">Rio Grande do Sul</option><option value="RO">Rondônia</option><option value="RR">Roraima</option><option value="SC">Santa Catarina</option><option value="SP">São Paulo</option><option value="SE">Sergipe</option><option value="TO">Tocantins</option></select></div>',
+        '<div><label for="endereco" class="form-label">Endereço *</label><input type="text" id="endereco" name="endereco" required class="form-input"></div>',
+        '<div><label for="bairro" class="form-label">Bairro *</label><input type="text" id="bairro" name="bairro" required class="form-input"></div>',
+        '<div><label for="cidade" class="form-label">Cidade *</label><input type="text" id="cidade" name="cidade" required class="form-input"></div>',
+        '<div><label for="estado" class="form-label">Estado *</label><select id="estado" name="estado" required class="form-select"><option value="">Selecione o estado</option><option value="AC">Acre</option><option value="AL">Alagoas</option><option value="AP">Amapá</option><option value="AM">Amazonas</option><option value="BA">Bahia</option><option value="CE">Ceará</option><option value="DF">Distrito Federal</option><option value="ES">Espírito Santo</option><option value="GO">Goiás</option><option value="MA">Maranhão</option><option value="MT">Mato Grosso</option><option value="MS">Mato Grosso do Sul</option><option value="MG">Minas Gerais</option><option value="PA">Pará</option><option value="PB">Paraíba</option><option value="PR">Paraná</option><option value="PE">Pernambuco</option><option value="PI">Piauí</option><option value="RJ">Rio de Janeiro</option><option value="RN">Rio Grande do Norte</option><option value="RS">Rio Grande do Sul</option><option value="RO">Rondônia</option><option value="RR">Roraima</option><option value="SC">Santa Catarina</option><option value="SP">São Paulo</option><option value="SE">Sergipe</option><option value="TO">Tocantins</option></select></div>',
         '</div>',
-        '<div class="sm:col-span-2"><label for="recaptcha_token" class="block text-sm font-medium text-gray-700">reCAPTCHA *</label><div id="recaptcha-{}" class="mt-1"><input type="hidden" id="recaptcha_token" name="recaptcha_token" value="test_token"><div class="text-sm text-gray-500">Verificação reCAPTCHA necessária</div></div></div>'.format(registration_type),
+        '<div class="sm:col-span-2"><label for="recaptcha_token" class="form-label">reCAPTCHA *</label><div id="recaptcha-{}" class="mt-1"><input type="hidden" id="recaptcha_token" name="recaptcha_token" value="test_token"><div class="text-sm text-gray-500">Verificação reCAPTCHA necessária</div></div></div>'.format(registration_type),
         '</div>'
     ]
     
     if registration_type == "cpf":
-        html_parts.insert(-1, '<div class="sm:col-span-2"><label for="data_nascimento" class="block text-sm font-medium text-gray-700">Data de Nascimento *</label><input type="date" id="data_nascimento" name="data_nascimento" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></div>')
+        html_parts.insert(-1, '<div class="sm:col-span-2"><label for="data_nascimento" class="form-label">Data de Nascimento *</label><input type="date" id="data_nascimento" name="data_nascimento" required class="form-input"></div>')
     
     return ''.join(html_parts)
 
@@ -580,17 +573,17 @@ def get_cnpj_step1_form(session_id: str) -> str:
         </div>
     </div>
     
-    <form hx-post="/registration/htmx/cnpj-step1" 
+    <form hx-post="/registration/htmx/cnpj-step1"
           hx-vals='{{"session_id": "{session_id}"}}'
           hx-target="#registration-form"
           hx-swap="innerHTML"
           hx-indicator=".cnpj-loading">
         
-        <div class="space-y-6">
+        <div class="form-space-y">
             <div>
-                <label for="qual_seu_negocio" class="block text-sm font-medium text-gray-700">Qual o seu negócio? *</label>
+                <label for="qual_seu_negocio" class="form-label">Qual o seu negócio? *</label>
                 <select id="qual_seu_negocio" name="qual_seu_negocio" required
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="form-select">
                     <option value="">Selecione...</option>
                     <option value="Academia">Academia</option>
                     <option value="Adega">Adega</option>
@@ -618,30 +611,30 @@ def get_cnpj_step1_form(session_id: str) -> str:
             </div>
             
             <div>
-                <label for="cnpj" class="block text-sm font-medium text-gray-700">CNPJ *</label>
+                <label for="cnpj" class="form-label">CNPJ *</label>
                 <input type="text" id="cnpj" name="cnpj" required
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                       class="form-input"
                        placeholder="00.000.000/0000-00"
                        oninput="formatCNPJ(this)"
                        maxlength="18">
             </div>
             
             <div>
-                <label for="razao_social" class="block text-sm font-medium text-gray-700">Razão Social *</label>
+                <label for="razao_social" class="form-label">Razão Social *</label>
                 <input type="text" id="razao_social" name="razao_social" required
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="seu_nome" class="block text-sm font-medium text-gray-700">Seu nome *</label>
+                <label for="seu_nome" class="form-label">Seu nome *</label>
                 <input type="text" id="seu_nome" name="seu_nome" required
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="sua_funcao" class="block text-sm font-medium text-gray-700">Sua função na empresa *</label>
+                <label for="sua_funcao" class="form-label">Sua função na empresa *</label>
                 <select id="sua_funcao" name="sua_funcao" required
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="form-select">
                     <option value="">Selecione...</option>
                     <option value="Proprietário">Proprietário</option>
                     <option value="Gerente">Gerente</option>
@@ -653,54 +646,46 @@ def get_cnpj_step1_form(session_id: str) -> str:
             </div>
             
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">E-mail *</label>
+                <label for="email" class="form-label">E-mail *</label>
                 <input type="email" id="email" name="email" required
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="celular" class="block text-sm font-medium text-gray-700">Celular *</label>
+                <label for="celular" class="form-label">Celular *</label>
                 <input type="text" id="celular" name="celular" required
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                       class="form-input"
                        placeholder="(11) 99999-9999"
                        oninput="formatPhone(this)"
                        maxlength="15">
             </div>
             
             <div class="space-y-4">
-                <div class="flex items-start">
-                    <div class="flex items-center h-5">
-                        <input id="terms_accepted" name="terms_accepted" type="checkbox" required
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <label for="terms_accepted" class="font-medium text-gray-700">
-                            Concordar com os termos da Política de Privacidade *
-                        </label>
-                    </div>
+                <div class="form-checkbox-container">
+                    <input id="terms_accepted" name="terms_accepted" type="checkbox" required
+                           class="form-checkbox">
+                    <label for="terms_accepted" class="form-checkbox-label">
+                        Concordar com os termos da Política de Privacidade *
+                    </label>
                 </div>
                 
-                <div class="flex items-start">
-                    <div class="flex items-center h-5">
-                        <input id="marketing_opt_in" name="marketing_opt_in" type="checkbox"
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <label for="marketing_opt_in" class="font-medium text-gray-700">
-                            Receber e-mails com promoções e novidades do sistema e parceiros
-                        </label>
-                    </div>
+                <div class="form-checkbox-container">
+                    <input id="marketing_opt_in" name="marketing_opt_in" type="checkbox"
+                           class="form-checkbox">
+                    <label for="marketing_opt_in" class="form-checkbox-label">
+                        Receber e-mails com promoções e novidades do sistema e parceiros
+                    </label>
                 </div>
             </div>
         </div>
         
         <div class="mt-8 flex justify-between">
-            <a href="/" 
-               class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <a href="/"
+               class="form-button-secondary">
                 Voltar
             </a>
-            <button type="submit" 
-                    class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cnpj-loading">
+            <button type="submit"
+                    class="form-button-primary cnpj-loading">
                 Avançar
             </button>
         </div>
@@ -727,33 +712,33 @@ def get_cpf_step1_form(session_id: str) -> str:
         </div>
     </div>
     
-    <form hx-post="/registration/htmx/cpf-step1" 
+    <form hx-post="/registration/htmx/cpf-step1"
           hx-vals='{{"session_id": "{session_id}"}}'
           hx-target="#registration-form"
           hx-swap="innerHTML"
           hx-indicator=".cpf-loading">
         
-        <div class="space-y-6">
+        <div class="form-space-y">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-3">Você compra para: *</label>
                 <div class="space-y-2">
                     <div class="flex items-center">
                         <input id="perfil_compra_casa" name="perfil_compra" type="radio" value="casa" required
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                               class="form-checkbox">
                         <label for="perfil_compra_casa" class="ml-2 block text-sm text-gray-900">
                             Sua casa
                         </label>
                     </div>
                     <div class="flex items-center">
                         <input id="perfil_compra_negocio" name="perfil_compra" type="radio" value="negocio" required
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                               class="form-checkbox">
                         <label for="perfil_compra_negocio" class="ml-2 block text-sm text-gray-900">
                             Seu negócio
                         </label>
                     </div>
                     <div class="flex items-center">
                         <input id="perfil_compra_ambos" name="perfil_compra" type="radio" value="ambos" required
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                               class="form-checkbox">
                         <label for="perfil_compra_ambos" class="ml-2 block text-sm text-gray-900">
                             Para ambos
                         </label>
@@ -762,36 +747,36 @@ def get_cpf_step1_form(session_id: str) -> str:
             </div>
             
             <div id="business-field" class="hidden">
-                <label for="qual_negocio_cpf" class="block text-sm font-medium text-gray-700">Qual o seu negócio?</label>
+                <label for="qual_negocio_cpf" class="form-label">Qual o seu negócio?</label>
                 <input type="text" id="qual_negocio_cpf" name="qual_negocio_cpf"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="cpf" class="block text-sm font-medium text-gray-700">CPF *</label>
+                <label for="cpf" class="form-label">CPF *</label>
                 <input type="text" id="cpf" name="cpf" required
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                       class="form-input"
                        placeholder="000.000.000-00"
                        oninput="formatCPF(this)"
                        maxlength="14">
             </div>
             
             <div>
-                <label for="nome_completo" class="block text-sm font-medium text-gray-700">Nome completo *</label>
+                <label for="nome_completo" class="form-label">Nome completo *</label>
                 <input type="text" id="nome_completo" name="nome_completo" required
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">E-mail *</label>
+                <label for="email" class="form-label">E-mail *</label>
                 <input type="email" id="email" name="email" required
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="genero" class="block text-sm font-medium text-gray-700">Gênero *</label>
+                <label for="genero" class="form-label">Gênero *</label>
                 <select id="genero" name="genero" required
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="form-select">
                     <option value="">Selecione...</option>
                     <option value="Feminino">Feminino</option>
                     <option value="masculino">Masculino</option>
@@ -801,48 +786,40 @@ def get_cpf_step1_form(session_id: str) -> str:
             </div>
             
             <div>
-                <label for="celular" class="block text-sm font-medium text-gray-700">Celular *</label>
+                <label for="celular" class="form-label">Celular *</label>
                 <input type="text" id="celular" name="celular" required
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                       class="form-input"
                        placeholder="(11) 99999-9999"
                        oninput="formatPhone(this)"
                        maxlength="15">
             </div>
             
             <div class="space-y-4">
-                <div class="flex items-start">
-                    <div class="flex items-center h-5">
-                        <input id="terms_accepted" name="terms_accepted" type="checkbox" required
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <label for="terms_accepted" class="font-medium text-gray-700">
-                            Concordar com os termos da Política de Privacidade *
-                        </label>
-                    </div>
+                <div class="form-checkbox-container">
+                    <input id="terms_accepted" name="terms_accepted" type="checkbox" required
+                           class="form-checkbox">
+                    <label for="terms_accepted" class="form-checkbox-label">
+                        Concordar com os termos da Política de Privacidade *
+                    </label>
                 </div>
                 
-                <div class="flex items-start">
-                    <div class="flex items-center h-5">
-                        <input id="marketing_opt_in" name="marketing_opt_in" type="checkbox"
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <label for="marketing_opt_in" class="font-medium text-gray-700">
-                            Receber e-mails com promoções e novidades do sistema e parceiros
-                        </label>
-                    </div>
+                <div class="form-checkbox-container">
+                    <input id="marketing_opt_in" name="marketing_opt_in" type="checkbox"
+                           class="form-checkbox">
+                    <label for="marketing_opt_in" class="form-checkbox-label">
+                        Receber e-mails com promoções e novidades do sistema e parceiros
+                    </label>
                 </div>
             </div>
         </div>
         
         <div class="mt-8 flex justify-between">
-            <a href="/" 
-               class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <a href="/"
+               class="form-button-secondary">
                 Voltar
             </a>
-            <button type="submit" 
-                    class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cpf-loading">
+            <button type="submit"
+                    class="form-button-primary cpf-loading">
                 Avançar
             </button>
         </div>
@@ -899,6 +876,27 @@ def get_cnpj_step1_form_with_data(session_id: str, data: Dict[str, Any]) -> str:
     def checkbox_checked(is_checked):
         return 'checked' if is_checked else ''
     
+    def safe_value(key, default=''):
+        value = data.get(key, default)
+        if isinstance(value, str):
+            # Handle Unicode encoding issues properly
+            try:
+                return value.encode('latin1').decode('utf-8')
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                return value
+        return value
+    
+    # Extract data with proper encoding handling
+    qual_seu_negocio = safe_value('qual_seu_negocio', '')
+    cnpj = safe_value('cnpj', '')
+    razao_social = safe_value('razao_social', '')
+    seu_nome = safe_value('seu_nome', '')
+    sua_funcao = safe_value('sua_funcao', '')
+    email = safe_value('email', '')
+    celular = safe_value('celular', '')
+    terms_accepted = data.get('terms_accepted', False)
+    marketing_opt_in = data.get('marketing_opt_in', False)
+    
     return f"""
 <div class="bg-white shadow-sm rounded-lg p-6">
     <div class="mb-6">
@@ -921,11 +919,11 @@ def get_cnpj_step1_form_with_data(session_id: str, data: Dict[str, Any]) -> str:
           hx-swap="innerHTML"
           hx-indicator=".cnpj-loading">
         
-        <div class="space-y-6">
+        <div class="form-space-y">
             <div>
-                <label for="qual_seu_negocio" class="block text-sm font-medium text-gray-700">Qual o seu negócio? *</label>
+                <label for="qual_seu_negocio" class="form-label">Qual o seu negócio? *</label>
                 <select id="qual_seu_negocio" name="qual_seu_negocio" required
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="form-select">
                     <option value="">Selecione...</option>
                     <option value="Academia" {option_selected("Academia", qual_seu_negocio)}>Academia</option>
                     <option value="Adega" {option_selected("Adega", qual_seu_negocio)}>Adega</option>
@@ -953,33 +951,33 @@ def get_cnpj_step1_form_with_data(session_id: str, data: Dict[str, Any]) -> str:
             </div>
             
             <div>
-                <label for="cnpj" class="block text-sm font-medium text-gray-700">CNPJ *</label>
+                <label for="cnpj" class="form-label">CNPJ *</label>
                 <input type="text" id="cnpj" name="cnpj" required
                        value="{cnpj}"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                       class="form-input"
                        placeholder="00.000.000/0000-00"
                        oninput="formatCNPJ(this)"
                        maxlength="18">
             </div>
             
             <div>
-                <label for="razao_social" class="block text-sm font-medium text-gray-700">Razão Social *</label>
+                <label for="razao_social" class="form-label">Razão Social *</label>
                 <input type="text" id="razao_social" name="razao_social" required
                        value="{razao_social}"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="seu_nome" class="block text-sm font-medium text-gray-700">Seu nome *</label>
+                <label for="seu_nome" class="form-label">Seu nome *</label>
                 <input type="text" id="seu_nome" name="seu_nome" required
                        value="{seu_nome}"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="sua_funcao" class="block text-sm font-medium text-gray-700">Sua função na empresa *</label>
+                <label for="sua_funcao" class="form-label">Sua função na empresa *</label>
                 <select id="sua_funcao" name="sua_funcao" required
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="form-select">
                     <option value="">Selecione...</option>
                     <option value="Proprietário" {option_selected("Proprietário", sua_funcao)}>Proprietário</option>
                     <option value="Gerente" {option_selected("Gerente", sua_funcao)}>Gerente</option>
@@ -991,58 +989,50 @@ def get_cnpj_step1_form_with_data(session_id: str, data: Dict[str, Any]) -> str:
             </div>
             
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">E-mail *</label>
+                <label for="email" class="form-label">E-mail *</label>
                 <input type="email" id="email" name="email" required
                        value="{email}"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="celular" class="block text-sm font-medium text-gray-700">Celular *</label>
+                <label for="celular" class="form-label">Celular *</label>
                 <input type="text" id="celular" name="celular" required
                        value="{celular}"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                       class="form-input"
                        placeholder="(11) 99999-9999"
                        oninput="formatPhone(this)"
                        maxlength="15">
             </div>
             
             <div class="space-y-4">
-                <div class="flex items-start">
-                    <div class="flex items-center h-5">
-                        <input id="terms_accepted" name="terms_accepted" type="checkbox" required
-                               {checkbox_checked(terms_accepted)}
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <label for="terms_accepted" class="font-medium text-gray-700">
-                            Concordar com os termos da Política de Privacidade *
-                        </label>
-                    </div>
+                <div class="form-checkbox-container">
+                    <input id="terms_accepted" name="terms_accepted" type="checkbox" required
+                           {checkbox_checked(terms_accepted)}
+                           class="form-checkbox">
+                    <label for="terms_accepted" class="form-checkbox-label">
+                        Concordar com os termos da Política de Privacidade *
+                    </label>
                 </div>
                 
-                <div class="flex items-start">
-                    <div class="flex items-center h-5">
-                        <input id="marketing_opt_in" name="marketing_opt_in" type="checkbox"
-                               {checkbox_checked(marketing_opt_in)}
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <label for="marketing_opt_in" class="font-medium text-gray-700">
-                            Receber e-mails com promoções e novidades do sistema e parceiros
-                        </label>
-                    </div>
+                <div class="form-checkbox-container">
+                    <input id="marketing_opt_in" name="marketing_opt_in" type="checkbox"
+                           {checkbox_checked(marketing_opt_in)}
+                           class="form-checkbox">
+                    <label for="marketing_opt_in" class="form-checkbox-label">
+                        Receber e-mails com promoções e novidades do sistema e parceiros
+                    </label>
                 </div>
             </div>
         </div>
         
         <div class="mt-8 flex justify-between">
-            <a href="/" 
-               class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <a href="/"
+               class="form-button-secondary">
                 Voltar
             </a>
-            <button type="submit" 
-                    class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cnpj-loading">
+            <button type="submit"
+                    class="form-button-primary cnpj-loading">
                 Avançar
             </button>
         </div>
@@ -1068,10 +1058,10 @@ def get_cpf_step1_form_with_data(session_id: str, data: Dict[str, Any]) -> str:
     def safe_value(key, default=''):
         value = data.get(key, default)
         if isinstance(value, str):
-            # Handle Unicode encoding issues
+            # Handle Unicode encoding issues properly
             try:
-                return value.encode('utf-8').decode('unicode_escape')
-            except:
+                return value.encode('latin1').decode('utf-8')
+            except (UnicodeDecodeError, UnicodeEncodeError):
                 return value
         return value
     
@@ -1091,20 +1081,20 @@ def get_cpf_step1_form_with_data(session_id: str, data: Dict[str, Any]) -> str:
         </div>
     </div>
     
-    <form hx-post="/registration/htmx/cpf-step1" 
+    <form hx-post="/registration/htmx/cpf-step1"
           hx-vals='{{"session_id": "{session_id}"}}'
           hx-target="#registration-form"
           hx-swap="innerHTML"
           hx-indicator=".cpf-loading">
         
-        <div class="space-y-6">
+        <div class="form-space-y">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-3">Você compra para: *</label>
                 <div class="space-y-2">
                     <div class="flex items-center">
                         <input id="perfil_compra_casa" name="perfil_compra" type="radio" value="casa" required
                                {radio_checked('casa', data.get('perfil_compra', ''))}
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                               class="form-checkbox">
                         <label for="perfil_compra_casa" class="ml-2 block text-sm text-gray-900">
                             Sua casa
                         </label>
@@ -1112,7 +1102,7 @@ def get_cpf_step1_form_with_data(session_id: str, data: Dict[str, Any]) -> str:
                     <div class="flex items-center">
                         <input id="perfil_compra_negocio" name="perfil_compra" type="radio" value="negocio" required
                                {radio_checked('negocio', data.get('perfil_compra', ''))}
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                               class="form-checkbox">
                         <label for="perfil_compra_negocio" class="ml-2 block text-sm text-gray-900">
                             Seu negócio
                         </label>
@@ -1120,7 +1110,7 @@ def get_cpf_step1_form_with_data(session_id: str, data: Dict[str, Any]) -> str:
                     <div class="flex items-center">
                         <input id="perfil_compra_ambos" name="perfil_compra" type="radio" value="ambos" required
                                {radio_checked('ambos', data.get('perfil_compra', ''))}
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                               class="form-checkbox">
                         <label for="perfil_compra_ambos" class="ml-2 block text-sm text-gray-900">
                             Para ambos
                         </label>
@@ -1129,41 +1119,41 @@ def get_cpf_step1_form_with_data(session_id: str, data: Dict[str, Any]) -> str:
             </div>
             
             <div id="business-field" class="{"hidden" if data.get('perfil_compra') not in ['negocio', 'ambos'] else ""}">
-                <label for="qual_negocio_cpf" class="block text-sm font-medium text-gray-700">Qual o seu negócio?</label>
+                <label for="qual_negocio_cpf" class="form-label">Qual o seu negócio?</label>
                 <input type="text" id="qual_negocio_cpf" name="qual_negocio_cpf"
                        {"required" if data.get('perfil_compra') in ['negocio', 'ambos'] else ""}
                        value="{data.get('qual_negocio_cpf', '')}"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="cpf" class="block text-sm font-medium text-gray-700">CPF *</label>
+                <label for="cpf" class="form-label">CPF *</label>
                 <input type="text" id="cpf" name="cpf" required
                        value="{safe_value('cpf', '')}"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                       class="form-input"
                        placeholder="000.000.000-00"
                        oninput="formatCPF(this)"
                        maxlength="14">
             </div>
             
             <div>
-                <label for="nome_completo" class="block text-sm font-medium text-gray-700">Nome completo *</label>
+                <label for="nome_completo" class="form-label">Nome completo *</label>
                 <input type="text" id="nome_completo" name="nome_completo" required
                        value="{safe_value('nome_completo', '')}"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">E-mail *</label>
+                <label for="email" class="form-label">E-mail *</label>
                 <input type="email" id="email" name="email" required
                        value="{safe_value('email', '')}"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                       class="form-input">
             </div>
             
             <div>
-                <label for="genero" class="block text-sm font-medium text-gray-700">Gênero *</label>
+                <label for="genero" class="form-label">Gênero *</label>
                 <select id="genero" name="genero" required
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="form-select">
                     <option value="">Selecione...</option>
                     <option value="Feminino" {option_selected('Feminino', safe_value('genero', ''))}>Feminino</option>
                     <option value="masculino" {option_selected('masculino', safe_value('genero', ''))}>Masculino</option>
@@ -1173,51 +1163,43 @@ def get_cpf_step1_form_with_data(session_id: str, data: Dict[str, Any]) -> str:
             </div>
             
             <div>
-                <label for="celular" class="block text-sm font-medium text-gray-700">Celular *</label>
+                <label for="celular" class="form-label">Celular *</label>
                 <input type="text" id="celular" name="celular" required
                        value="{safe_value('celular', '')}"
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                       class="form-input"
                        placeholder="(11) 99999-9999"
                        oninput="formatPhone(this)"
                        maxlength="15">
             </div>
             
             <div class="space-y-4">
-                <div class="flex items-start">
-                    <div class="flex items-center h-5">
-                        <input id="terms_accepted" name="terms_accepted" type="checkbox" required
-                               {checkbox_checked(data.get('terms_accepted', False))}
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <label for="terms_accepted" class="font-medium text-gray-700">
-                            Concordar com os termos da Política de Privacidade *
-                        </label>
-                    </div>
+                <div class="form-checkbox-container">
+                    <input id="terms_accepted" name="terms_accepted" type="checkbox" required
+                           {checkbox_checked(data.get('terms_accepted', False))}
+                           class="form-checkbox">
+                    <label for="terms_accepted" class="form-checkbox-label">
+                        Concordar com os termos da Política de Privacidade *
+                    </label>
                 </div>
                 
-                <div class="flex items-start">
-                    <div class="flex items-center h-5">
-                        <input id="marketing_opt_in" name="marketing_opt_in" type="checkbox"
-                               {checkbox_checked(data.get('marketing_opt_in', False))}
-                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
-                    </div>
-                    <div class="ml-3 text-sm">
-                        <label for="marketing_opt_in" class="font-medium text-gray-700">
-                            Receber e-mails com promoções e novidades do sistema e parceiros
-                        </label>
-                    </div>
+                <div class="form-checkbox-container">
+                    <input id="marketing_opt_in" name="marketing_opt_in" type="checkbox"
+                           {checkbox_checked(data.get('marketing_opt_in', False))}
+                           class="form-checkbox">
+                    <label for="marketing_opt_in" class="form-checkbox-label">
+                        Receber e-mails com promoções e novidades do sistema e parceiros
+                    </label>
                 </div>
             </div>
         </div>
         
         <div class="mt-8 flex justify-between">
-            <a href="/" 
-               class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <a href="/"
+               class="form-button-secondary">
                 Voltar
             </a>
-            <button type="submit" 
-                    class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cpf-loading">
+            <button type="submit"
+                    class="form-button-primary cpf-loading">
                 Avançar
             </button>
         </div>
