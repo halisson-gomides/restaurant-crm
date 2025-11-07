@@ -36,6 +36,7 @@ class BaseService(Generic[T]):
         await db.commit()
         await db.refresh(db_obj)
         return db_obj
+    
 
     async def get_by_id(self, db: AsyncSession, obj_id: str) -> Optional[T]:
         """

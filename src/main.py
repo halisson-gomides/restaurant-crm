@@ -5,13 +5,15 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
 from .database import init_db, close_db, get_database
 from .api.v1.registration import router as registration_router
 from .utils.templates import company_context
-
+from .utils.helpers import remove_accents
+from pathlib import Path
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -57,8 +59,12 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
 # Initialize templates
 templates = Jinja2Templates(directory="templates")
+
+# Add custom Jinja2 filters
+templates.env.filters['remove_accents'] = remove_accents
 
 # Include API routers
 app.include_router(registration_router)
@@ -98,6 +104,7 @@ async def cpf_registration_page(request: Request, session_id: str):
         "session_id": session_id,
         **company_context(request)
     })
+
 
 @app.get("/registration/success/{registration_type}/{registration_id}", tags=["Pages"])
 async def registration_success(
@@ -159,6 +166,32 @@ async def htmx_health():
 async def api_docs():
     """Redirect to API documentation."""
     return {"redirect": "/docs", "message": "API documentation available at /docs"}
+
+
+@app.get("/download/politica-de-privacidade", name="download_privacy_policy")
+async def download_privacy_policy():
+    """
+    Serve o arquivo de política de privacidade para download.
+    """
+    from pathlib import Path
+    
+    # Caminho para o arquivo de política de privacidade
+    file_path = Path("docs/politica_de_privacidade.pdf")
+    
+    # Nome que o arquivo terá ao ser baixado pelo usuário
+    download_name = "Política de Privacidade.pdf"
+
+    # Verificação de segurança: checa se o arquivo existe
+    if not file_path.exists():
+        return {"error": "Arquivo não encontrado"}, 404
+
+    # Retorna o arquivo como um download
+    return FileResponse(
+        path=file_path,
+        filename=download_name,
+        media_type='application/pdf'
+    )
+
 
 if __name__ == "__main__":
     import uvicorn

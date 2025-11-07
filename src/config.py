@@ -56,6 +56,16 @@ class Settings(BaseSettings):
         default="/api/v1",
         description="API v1 prefix"
     )
+    
+    # reCAPTCHA Configuration
+    recaptcha_site_key: str = Field(
+        default="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
+        description="Google reCAPTCHA site key (test key for development)"
+    )
+    recaptcha_secret_key: str = Field(
+        default="6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe",
+        description="Google reCAPTCHA secret key (test key for development)"
+    )
 
     class Config:
         """Pydantic configuration."""

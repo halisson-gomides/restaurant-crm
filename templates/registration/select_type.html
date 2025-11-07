@@ -11,23 +11,19 @@
             </div>
             <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
                 Criar Conta {{ company_name }}!
-            </h2>
-            <p class="mt-2 text-center text-sm text-gray-600">
-                Escolha como você gostaria de se cadastrar no nosso sistema
-            </p>
+            </h2>            
         </div>
 
         <!-- Container para o formulário que será carregado dinamicamente -->
         <div id="registration-form">
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Escolha como você gostaria de se cadastrar no nosso sistema
+            </p>
             <div class="mt-8 space-y-4">
                 <!-- CNPJ Option -->
-                <div id="cnpj-option" 
+                <div id="cnpj-option"
                      class="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all"
-                     hx-post="/registration/session"
-                     hx-vals='{"registration_type": "CNPJ"}'
-                     hx-target="#registration-form"
-                     hx-swap="innerHTML"
-                     hx-indicator=".cnpj-loading">
+                     data-registration-type="CNPJ">
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="flex items-center">
@@ -53,20 +49,16 @@
                             <i class="fas fa-arrow-right text-gray-400 text-lg"></i>
                         </div>
                     </div>
-                    <div class="cnpj-loading htmx-indicator mt-4 flex items-center text-indigo-600">
+                    <div id="cnpj-loading" class="hidden mt-4 flex items-center text-indigo-600">
                         <div class="loading-spinner mr-2"></div>
                         <span>Criando sessão...</span>
                     </div>
                 </div>
 
                 <!-- CPF Option -->
-                <div id="cpf-option" 
+                <div id="cpf-option"
                      class="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all"
-                     hx-post="/registration/session"
-                     hx-vals='{"registration_type": "CPF"}'
-                     hx-target="#registration-form"
-                     hx-swap="innerHTML"
-                     hx-indicator=".cpf-loading">
+                     data-registration-type="CPF">
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="flex items-center">
@@ -91,7 +83,7 @@
                             <i class="fas fa-arrow-right text-gray-400 text-lg"></i>
                         </div>
                     </div>
-                    <div class="cpf-loading htmx-indicator mt-4 flex items-center text-indigo-600">
+                    <div id="cpf-loading" class="hidden mt-4 flex items-center text-indigo-600">
                         <div class="loading-spinner mr-2"></div>
                         <span>Criando sessão...</span>
                     </div>
@@ -153,39 +145,20 @@
 
 {% block scripts %}
 <script>
-// Add click animations
-document.addEventListener('DOMContentLoaded', function() {
-    const cnpjOption = document.getElementById('cnpj-option');
-    const cpfOption = document.getElementById('cpf-option');
-    
-    function addClickEffect(element) {
-        element.addEventListener('click', function() {
-            this.style.transform = 'scale(0.98)';
-            setTimeout(() => {
-                this.style.transform = 'scale(1)';
-            }, 100);
-        });
-    }
-    
-    addClickEffect(cnpjOption);
-    addClickEffect(cpfOption);
-    
-    // Add HTMX error handling
-    document.body.addEventListener('htmx:responseError', function(e) {
-        console.error('HTMX request failed:', e.detail);
-        showErrorToast('Erro ao criar sessão de cadastro. Tente novamente.');
-    });
-    
-    // Add success handling for registration session creation
-    document.body.addEventListener('htmx:afterRequest', function(e) {
-        if (e.detail.successful && e.detail.requestConfig.verb === 'post') {
-            const response = e.detail.xhr.responseText;
-            if (response && !response.includes('error')) {
-                // If we get a response that looks like HTML for a form, that's good
-                if (response.includes('<form') || response.includes('RegistrationForm')) {
-                    showSuccessToast('Sessão criada com sucesso!');
-                }
-            }
+$(document).ready(function() {
+    // Add click animations using jQuery
+    $('#cnpj-option, #cpf-option').on('click', function() {
+
+        const $this = $(this);
+        $this.css('transform', 'scale(0.98)');
+        setTimeout(function() {
+            $this.css('transform', 'scale(1)');
+        }, 100);
+        
+        // Start registration based on data attribute
+        const registrationType = $this.data('registration-type');
+        if (registrationType && window.startRegistration) {
+            window.startRegistration(registrationType);
         }
     });
 });

@@ -1,8 +1,13 @@
 """Client registration schemas for CNPJ/CPF registration system."""
-from pydantic import BaseModel, EmailStr, validator, Field, model_validator
+from pydantic import BaseModel, EmailStr, field_validator, Field, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import date
 import re
+
+
+class RegistrationSessionCreate(BaseModel):
+    """Registration session creation schema."""
+    registration_type: str = Field(..., pattern="^(CNPJ|CPF)$")
 
 
 # Address schemas
@@ -14,7 +19,7 @@ class AddressBase(BaseModel):
     cidade: str = Field(..., description="City")
     estado: str = Field(..., description="State (2-letter abbreviation)")
 
-    @validator('estado')
+    @field_validator('estado')
     def validate_estado(cls, v):
         """Validate Brazilian state abbreviations."""
         valid_states = [
@@ -53,7 +58,7 @@ class CNPJStep1(BaseModel):
     terms_accepted: bool = Field(..., description="Terms acceptance")
     marketing_opt_in: Optional[bool] = Field(default=False, description="Marketing consent")
 
-    @validator('qual_seu_negocio')
+    @field_validator('qual_seu_negocio')
     def validate_business_type(cls, v):
         """Validate business type options."""
         valid_types = [
@@ -67,7 +72,7 @@ class CNPJStep1(BaseModel):
             raise ValueError(f'Business type must be one of: {", ".join(valid_types)}')
         return v
 
-    @validator('sua_funcao')
+    @field_validator('sua_funcao')
     def validate_role(cls, v):
         """Validate role options."""
         valid_roles = ["Proprietário", "Gerente", "Estoquista"]
@@ -75,7 +80,7 @@ class CNPJStep1(BaseModel):
             raise ValueError(f'Role must be one of: {", ".join(valid_roles)}')
         return v
 
-    @validator('cnpj')
+    @field_validator('cnpj')
     def validate_cnpj(cls, v):
         """Validate and format CNPJ."""
         cnpj = re.sub(r'[^0-9]', '', v)
@@ -87,7 +92,7 @@ class CNPJStep1(BaseModel):
         
         return ValidationUtils.format_cnpj(cnpj)
 
-    @validator('celular')
+    @field_validator('celular')
     def validate_celular(cls, v):
         """Validate and format Brazilian phone number."""
         phone = re.sub(r'[^0-9]', '', v)
@@ -107,13 +112,7 @@ class CNPJRegistrationComplete(CNPJStep1, CNPJStep2):
     pass
 
 
-class CNPJRegistrationOut(CNPJRegistrationComplete):
-    """CNPJ registration output schema."""
-    id: str
-    created_at: str
-    
-    class Config:
-        from_attributes = True
+# REMOVED: CNPJRegistrationOut - not used anywhere in the codebase
 
 
 # CPF Registration schemas
@@ -129,7 +128,7 @@ class CPFStep1(BaseModel):
     terms_accepted: bool = Field(..., description="Terms acceptance")
     marketing_opt_in: Optional[bool] = Field(default=False, description="Marketing consent")
 
-    @validator('perfil_compra')
+    @field_validator('perfil_compra')
     def validate_perfil_compra(cls, v):
         """Validate purchase profile options."""
         valid_profiles = ["casa", "negocio", "ambos"]
@@ -137,7 +136,7 @@ class CPFStep1(BaseModel):
             raise ValueError(f'Purchase profile must be one of: {", ".join(valid_profiles)}')
         return v
 
-    @validator('genero')
+    @field_validator('genero')
     def validate_genero(cls, v):
         """Validate gender options."""
         valid_genders = ["Feminino", "masculino", "outros", "não quero me identificar"]
@@ -145,7 +144,7 @@ class CPFStep1(BaseModel):
             raise ValueError(f'Gender must be one of: {", ".join(valid_genders)}')
         return v
 
-    @validator('cpf')
+    @field_validator('cpf')
     def validate_cpf(cls, v):
         """Validate and format CPF."""
         cpf = re.sub(r'[^0-9]', '', v)
@@ -160,11 +159,11 @@ class CPFStep1(BaseModel):
     @model_validator(mode='after')
     def validate_business_field(self):
         """Validate conditional business name field using model validator."""
-        if self.perfil_compra == 'negocio' and (not self.qual_negocio_cpf or not self.qual_negocio_cpf.strip()):
-            raise ValueError('Business name is required when profile is "Seu negócio"')
+        if self.perfil_compra in ['negocio', 'ambos'] and (not self.qual_negocio_cpf or not self.qual_negocio_cpf.strip()):
+            raise ValueError('Business name is required when profile is "Seu negócio" or "Para ambos"')
         return self
 
-    @validator('celular')
+    @field_validator('celular')
     def validate_celular(cls, v):
         """Validate and format Brazilian phone number."""
         phone = re.sub(r'[^0-9]', '', v)
@@ -184,7 +183,7 @@ class CPFStep2(BaseModel):
     estado: str
     recaptcha_token: str = Field(..., description="reCAPTCHA token")
 
-    @validator('estado')
+    @field_validator('estado')
     def validate_estado(cls, v):
         """Validate Brazilian state abbreviations."""
         valid_states = [
@@ -200,21 +199,6 @@ class CPFStep2(BaseModel):
 class CPFRegistrationComplete(CPFStep1, CPFStep2):
     """Complete CPF registration schema."""
     pass
-
-
-class CPFRegistrationOut(CPFRegistrationComplete):
-    """CPF registration output schema."""
-    id: str
-    created_at: str
-    
-    class Config:
-        from_attributes = True
-
-
-# Registration session schemas
-class RegistrationSessionCreate(BaseModel):
-    """Registration session creation schema."""
-    registration_type: str = Field(..., pattern="^(CNPJ|CPF)$")
 
 
 class RegistrationSessionOut(BaseModel):
@@ -236,13 +220,6 @@ class DocumentValidationResponse(BaseModel):
     valid: bool
     message: str
 
-
-class AddressResponse(BaseModel):
-    """Address lookup response schema."""
-    endereco: str
-    bairro: str
-    cidade: str
-    estado: str
 
 
 # Validation utilities

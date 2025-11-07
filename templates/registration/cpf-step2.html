@@ -1,0 +1,282 @@
+{% block content %}
+<p class="mt-2 text-center text-sm text-gray-600">
+    {% block title %}Endereço Pessoal - {{ company_name }}{% endblock %}
+</p>
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="form-space-y">
+        <!-- Progress Indicator -->
+        <div class="mb-8">
+            <div class="flex items-center justify-center">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <span class="ml-2 text-sm font-medium text-green-600">Dados Pessoais</span>
+                    </div>
+                    <div class="w-8 h-0.5 bg-green-500"></div>
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                            2
+                        </div>
+                        <span class="ml-2 text-sm font-medium text-indigo-600">Endereço</span>
+                    </div>
+                    <div class="w-8 h-0.5 bg-gray-300"></div>
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gray-300 text-gray-500 rounded-full flex items-center justify-center text-sm font-medium">
+                            3
+                        </div>
+                        <span class="ml-2 text-sm font-medium text-gray-500">Conclusão</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration Form -->
+        <div id="registration-form" class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="mb-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                                <i class="fas fa-map-marker-alt text-green-600"></i>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                                Endereço Pessoal
+                            </h3>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Informe o endereço completo para entrega e correspondência
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <form>
+                    
+                    <input type="hidden" name="session_id" value="{{ session_id }}">
+                    <input type="hidden" name="recaptcha_token" id="recaptcha-token" value="test-token">
+                    
+                    <div class="form-space-y">
+                        <!-- Birth Date -->
+                        <div>
+                            <label for="data_nascimento" class="form-label">
+                                Data de Nascimento <span class="text-red-600">*</span>
+                            </label>
+                            <input type="date"
+                                   id="data_nascimento"
+                                   name="data_nascimento"
+                                   required
+                                   class="form-input"
+                                   max="2008-01-01">
+                        </div>
+
+                        <!-- CEP -->
+                        <div class="sm:col-span-2">
+                            <label for="cep" class="form-label">
+                                CEP <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text"
+                                   id="cep"
+                                   name="cep"
+                                   required
+                                   placeholder="00000-000"
+                                   maxlength="9"
+                                   class="form-input"
+                                   >
+                            <div id="cep-validation" class="mt-1"></div>
+                        </div>
+
+                        <!-- Address Fields Container -->
+                        <div id="address-fields">
+                            <!-- Street Address -->
+                            <div class="sm:col-span-2">
+                                <label for="endereco" class="form-label">
+                                    Endereço <span class="text-red-600">*</span>
+                                </label>
+                                <input type="text"
+                                       id="endereco"
+                                       name="endereco"
+                                       required
+                                       placeholder="Rua, Avenida, etc."
+                                       class="form-input">
+                            </div>
+
+                            <!-- Neighborhood -->
+                            <div class="sm:col-span-2">
+                                <label for="bairro" class="form-label">
+                                    Bairro <span class="text-red-600">*</span>
+                                </label>
+                                <input type="text"
+                                       id="bairro"
+                                       name="bairro"
+                                       required
+                                       placeholder="Nome do bairro"
+                                       class="form-input">
+                            </div>
+
+                            <!-- City -->
+                            <div>
+                                <label for="cidade" class="form-label">
+                                    Cidade <span class="text-red-600">*</span>
+                                </label>
+                                <input type="text"
+                                       id="cidade"
+                                       name="cidade"
+                                       required
+                                       placeholder="Nome da cidade"
+                                       class="form-input">
+                            </div>
+
+                            <!-- State -->
+                            <div>
+                                <label for="estado" class="form-label">
+                                    Estado <span class="text-red-600">*</span>
+                                </label>
+                                <select id="estado" name="estado" required
+                                        class="form-select">
+                                    <option value="">Selecione o estado</option>
+                                    <option value="AC">Acre</option>
+                                    <option value="AL">Alagoas</option>
+                                    <option value="AP">Amapá</option>
+                                    <option value="AM">Amazonas</option>
+                                    <option value="BA">Bahia</option>
+                                    <option value="CE">Ceará</option>
+                                    <option value="DF">Distrito Federal</option>
+                                    <option value="ES">Espírito Santo</option>
+                                    <option value="GO">Goiás</option>
+                                    <option value="MA">Maranhão</option>
+                                    <option value="MT">Mato Grosso</option>
+                                    <option value="MS">Mato Grosso do Sul</option>
+                                    <option value="MG">Minas Gerais</option>
+                                    <option value="PA">Pará</option>
+                                    <option value="PB">Paraíba</option>
+                                    <option value="PR">Paraná</option>
+                                    <option value="PE">Pernambuco</option>
+                                    <option value="PI">Piauí</option>
+                                    <option value="RJ">Rio de Janeiro</option>
+                                    <option value="RN">Rio Grande do Norte</option>
+                                    <option value="RS">Rio Grande do Sul</option>
+                                    <option value="RO">Rondônia</option>
+                                    <option value="RR">Roraima</option>
+                                    <option value="SC">Santa Catarina</option>
+                                    <option value="SP">São Paulo</option>
+                                    <option value="SE">Sergipe</option>
+                                    <option value="TO">Tocantins</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- reCAPTCHA -->
+                        <div class="sm:col-span-2">
+                            <label class="form-label">Verificação de segurança <span class="text-red-600">*</span></label>
+                            <div id="recaptcha-container" class="mb-4"></div>
+                            <div id="recaptcha-error" class="text-red-600 text-sm mt-1 hidden">Por favor, complete a verificação de segurança</div>
+                            <input type="hidden" name="recaptcha_token" id="recaptcha-token" value="">
+                        </div>
+                    </div>
+
+                    <!-- Response Area -->
+                    <div id="step2-response" class="mt-6"></div>
+
+                    <!-- Buttons -->
+                    <div class="mt-6 flex justify-between">
+                        <a href="/registration"
+                           class="form-button-secondary">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Voltar
+                        </a>
+                        <button type="submit" 
+                                class="form-button-primary">
+                            <span class="form-loading htmx-indicator mr-2">
+                                <div class="loading-spinner"></div>
+                            </span>
+                            Concluir Cadastro
+                            <i class="fas fa-check ml-2"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="mt-8 bg-blue-50 rounded-lg p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-blue-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">
+                        Precisa de ajuda?
+                    </h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p>
+                            Se você tem dúvidas sobre o processo de cadastro, 
+                            nossa equipe está disponível para ajudar.
+                        </p>
+                        <p class="mt-2">
+                            <a href="mailto:suporte@{{company_name | lower | remove_accents}}.com.br" class="font-medium underline hover:text-blue-600">
+                                suporte@{{company_name | lower | remove_accents}}.com.br
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Set reCAPTCHA site key from backend
+window.recaptchaSiteKey = '{{ recaptcha_site_key }}';
+
+// Initialize step 2 form functionality
+$(document).ready(function() {
+    // CEP formatting and validation
+    // $(document).on('input', '#cep', function() {
+    //     let cep = $(this).val().replace(/\D/g, '');
+    //     if (cep.length <= 8) {
+    //         $(this).val(cep.replace(/(\d{5})(\d{3})/, '$1-$2'));
+    //     }
+    // });
+
+    // CEP auto-fill on blur
+    // $(document).on('blur', '#cep', function() {
+    //     const cep = $(this).val().replace(/\D/g, '');
+    //     if (cep.length === 8) {
+    //         // Show loading
+    //         $('#cep-validation').html('<div class="text-blue-600 text-sm mt-1">Buscando endereço...</div>');
+            
+    //         $.ajax({
+    //             url: `/registration/address/cep/${cep}`,
+    //             method: 'GET',
+    //             dataType: 'json',
+    //             timeout: 10000,
+    //             success: function(data) {
+    //                 if (data.success) {
+    //                     // Auto-fill address fields
+    //                     $('#endereco').val(data.endereco || '').trigger('change');
+    //                     $('#bairro').val(data.bairro || '').trigger('change');
+    //                     $('#cidade').val(data.cidade || '').trigger('change');
+    //                     $('#estado').val(data.estado || '').trigger('change');
+                        
+    //                     $('#cep-validation').html('<div class="text-green-600 text-sm mt-1">✓ Endereço encontrado!</div>');
+                        
+    //                     // Focus on next field
+    //                     $('#endereco').focus();
+    //                 } else {
+    //                     $('#cep-validation').html(`<div class="text-red-600 text-sm mt-1">✗ ${data.error}</div>`);
+    //                 }
+    //             },
+    //             error: function() {
+    //                 $('#cep-validation').html('<div class="text-red-600 text-sm mt-1">✗ Erro ao buscar CEP</div>');
+    //             }
+    //         });
+    //     }
+    // });
+});
+</script>
+{% endblock %}

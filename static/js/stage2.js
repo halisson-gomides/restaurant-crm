@@ -4,7 +4,7 @@
 (function($) {
     'use strict';
 
-    // Formatting functions - FIXED: Handle null/undefined values
+    // Formatting functions - Handle null/undefined values
     window.formatCNPJ = function(value) {
         if (value == null || value === '') return value;
         let strValue = String(value);
@@ -118,6 +118,11 @@
         return parseInt(cpf.charAt(10)) === digit2;
     }
 
+    function isValidEmail(email) {
+        var regex = /^([a-zA-Z0-9_.+-])+\@(([a-zA-Z0-9-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+        return regex.test(email);
+    }
+
     // jQuery initialization
     $(document).ready(function() {
         initializeStage2();
@@ -148,28 +153,45 @@
         $(document).on('change', 'input[name="perfil_compra"]', function() {
             const businessField = $('#business-field');
             const businessNameInput = $('#qual_negocio_cpf');
+            const negocio = ["negocio", "ambos"];
             
-            if (this.value === 'negocio') {
+            if (negocio.includes(this.value)) {
                 businessField.removeClass('hidden');
                 businessNameInput.attr('required', true);
             } else {
+                businessNameInput.val('');
                 businessField.addClass('hidden');
                 businessNameInput.removeAttr('required');
             }
         });
 
-        // Auto-fill address fields on CEP blur
-        $(document).on('blur', '#cep', function() {
-            const cep = $(this).val().replace(/\D/g, '');
-            
-            if (cep.length === 8) {
-                getAddressByCEP(cep);
+        // Auto-fill address fields on CEP blur - FIXED: Remove hiding/showing logic
+        // $(document).on('blur', '#cep', function() {
+        //     const cep = $(this).val().replace(/\D/g, '');
+
+        //     if (cep.length === 8) {
+        //         getAddressByCEP(cep);
+        //     }
+        // });
+
+        // Document validation on blur - NEW: AJAX validation for CNPJ/CPF
+        $(document).on('blur', '#cnpj', function() {
+            const cnpj = $(this).val().replace(/\D/g, '');
+            if (cnpj.length === 14) {
+                validateDocumentAJAX(cnpj, 'CNPJ');
             }
         });
 
-        // Add formatCEP on input for CEP field
-        $(document).on('input', '#cep', function() {
-            this.value = window.formatCEP(this.value);
+        $(document).on('blur', '#cpf', function() {
+            const cpf = $(this).val().replace(/\D/g, '');
+            if (cpf.length === 11) {
+                validateDocumentAJAX(cpf, 'CPF');
+            }
+        });
+
+        $(document).on('blur', '#email', function() {
+            const email = $.trim($(this).val());
+            validateDocumentAJAX(email, 'EMAIL');
         });
 
         // Show loading indicator for HTMX requests
@@ -181,45 +203,66 @@
             $(this).find('button[type="submit"]').prop('disabled', false).removeClass('opacity-50');
         });
 
-        // Handle HTMX responses
-        $(document).on('htmx:afterOnLoad', '[hx-target]', function(event) {
-            try {
-                const response = event.detail.xhr.responseText;
-                let data;
-                
-                // Try to parse as JSON
+        // Handle HTMX validation responses specifically
+        $(document).on('htmx:afterRequest', '[hx-target="#registration-form"]', function(event) {
+            const xhr = event.detail.xhr;
+            const responseText = xhr.responseText;
+
+            // Hide loading indicator
+            $(this).find('button[type="submit"]').prop('disabled', false).removeClass('opacity-50');
+
+            // Only process JSON responses (error responses)
+            if (xhr.getResponseHeader('content-type') && xhr.getResponseHeader('content-type').includes('application/json')) {
                 try {
-                    data = JSON.parse(response);
+                    const data = JSON.parse(responseText);
+
+                    // Handle validation errors (both 200 and 400 status codes)
+                    if (data.success === false) {
+                        // Handle field-specific errors
+                        if (data.field_errors) {
+                            showFieldErrors(data.field_errors);
+
+                            // Focus on first error field
+                            const firstErrorField = Object.keys(data.field_errors)[0];
+                            if (firstErrorField) {
+                                focusOnField(firstErrorField);
+                            }
+
+                            // Show toast with first error
+                            const firstError = Object.values(data.field_errors)[0];
+                            showErrorToast(firstError);
+                            return; // Stop processing - don't allow form advance
+                        }
+
+                        // Handle general error
+                        if (data.error) {
+                            showErrorToast(data.error);
+                            return; // Stop processing - don't allow form advance
+                        }
+                    }
+
+                    // If success is true, let HTMX handle the HTML response normally
+                    if (data.success === true) {
+                        // This is a successful validation, HTMX will handle the HTML response
+                        return;
+                    }
+
                 } catch (e) {
-                    // Response is HTML, not JSON
-                    return;
+                    console.error('Error parsing validation response:', e);
+                    showErrorToast('Erro de validação. Verifique os dados informados.');
                 }
-                
-                if (data.success === false && data.field_errors) {
-                    // Show field errors
-                    showFieldErrors(data.field_errors);
-                }
-                
-                if (data.success === false && data.error) {
-                    showGlobalError(data.error);
-                }
-            } catch (e) {
-                console.error('Error handling HTMX response:', e);
             }
+            // If not JSON, it's HTML - let HTMX handle it normally
         });
+        
+        // Remove duplicate handler - validation is now handled in the main afterRequest handler
     }
 
-    // Address lookup using ViaCEP
+    // Address lookup using ViaCEP - FIXED: Properly use jQuery and remove field hiding
     function getAddressByCEP(cep) {
-        // Manually show loading overlay for CEP lookup
-        const overlay = document.getElementById('loading-overlay');
-        const text = overlay.querySelector('span');
-        if (text) {
-            text.textContent = 'Carregando endereço...';
-        }
-        overlay.classList.remove('hidden');
-        overlay.classList.add('flex');
-        
+        // Show loading overlay for CEP lookup
+        $('#loading-overlay').removeClass('hidden').addClass('flex');
+
         $.ajax({
             url: `/registration/address/cep/${cep}`,
             method: 'GET',
@@ -227,61 +270,568 @@
             timeout: 10000,
             success: function(data) {
                 // Hide loading overlay
-                overlay.classList.add('hidden');
-                overlay.classList.remove('flex');
-                
+                $('#loading-overlay').addClass('hidden').removeClass('flex');
+
                 if (data.success) {
-                    // Auto-fill address fields individually
+                    // Auto-fill address fields individually using jQuery
+                    // CRITICAL: Do NOT hide or remove address fields
                     $('#endereco').val(data.endereco || '').trigger('change');
                     $('#bairro').val(data.bairro || '').trigger('change');
                     $('#cidade').val(data.cidade || '').trigger('change');
                     $('#estado').val(data.estado || '').trigger('change');
-                    
+
                     // Show success toast
-                    showToast('success', 'Endereço encontrado e preenchido automaticamente!');
-                    
+                    showSuccessToast('Endereço encontrado e preenchido automaticamente!');
+
                     // Focus on next field
                     $('#endereco').focus();
                 } else {
                     // Show error toast
-                    showToast('error', data.error || 'CEP não encontrado. Por favor, preencha manualmente.');
+                    showErrorToast(data.error || 'CEP não encontrado. Por favor, preencha manualmente.');
                 }
             },
             error: function(xhr, status, error) {
                 // Hide loading overlay
-                overlay.classList.add('hidden');
-                overlay.classList.remove('flex');
-                
+                $('#loading-overlay').addClass('hidden').removeClass('flex');
+
                 console.error('Erro na busca do CEP:', error);
-                showToast('error', 'Erro ao buscar CEP. Por favor, tente novamente.');
+                showErrorToast('Erro ao buscar CEP. Por favor, tente novamente.');
+            }
+        });
+    }
+
+    // Document validation using AJAX - NEW: Separate function for document validation
+    function validateDocumentAJAX(document, type) {
+        // Clear previous validation messages
+        $(`#${type.toLowerCase()}-validation`).html('');
+
+        const doc_name = type === 'EMAIL'? "E-mail" : "Documento";
+
+        if (type === 'EMAIL' && !isValidEmail(document)){
+            $(`#${type.toLowerCase()}-validation`).html(`<div class="text-red-600 text-sm mt-1">✗ ${doc_name} inválido</div>`);
+            $(`#${type.toLowerCase()}`).focus();
+            return;
+        }
+
+        $.ajax({
+            url: `/registration/validate/document/${type}/${document}`,
+            method: 'GET',
+            dataType: 'json',
+            timeout: 5000,
+            success: function(data) {
+                if (data.valid) {
+                    // Show success message
+                    $(`#${type.toLowerCase()}-validation`).html(`<div class="text-green-600 text-sm mt-1">✓ ${doc_name} válido e disponível</div>`);
+                } else {
+                    // Show error message
+                    $(`#${type.toLowerCase()}-validation`).html(`<div class="text-red-600 text-sm mt-1">✗ ${data.message}</div>`);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error(`Erro na validação do ${type}:`, error);
+                $(`#${type.toLowerCase()}-validation`).html('<div class="text-red-600 text-sm mt-1">✗ Erro na validação. Tente novamente.</div>');
             }
         });
     }
     
-    // Show toast message
-    function showToast(type, message) {
-        // Create toast element
-        const toast = $(`
-            <div class="fixed top-4 right-4 ${type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white px-4 py-2 rounded shadow-lg z-50 transition-all duration-300">
-                <div class="flex items-center">
-                    <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'} mr-2"></i>
-                    <span>${message}</span>
-                    <button onclick="$(this).parent().parent().remove()" class="ml-4 text-white hover:text-gray-200">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        `);
+    // Toast message functions using base.html toast system
+    function showErrorToast(message) {
+        // console.log('showErrorToast called with message:', message);
         
-        // Add to page
-        $('body').append(toast);
+        const toast = $('#error-toast');
+        const messageEl = $('#error-message');
         
-        // Auto-remove after 5 seconds
+        if (toast.length === 0 || messageEl.length === 0) {
+            console.error('Toast elements not found, falling back to alert');
+            alert('Erro: ' + message);
+            return;
+        }
+        
+        messageEl.text(message);
+        // Remove the hidden display style and opacity classes
+        toast.css('display', 'block');
+        toast.removeClass('opacity-0 invisible').addClass('opacity-100 visible');
+        
+        // console.log('Toast displayed successfully');
+        
         setTimeout(function() {
-            toast.fadeOut(300, function() {
-                $(this).remove();
-            });
+            closeErrorToast();
         }, 5000);
+    }
+
+    function showSuccessToast(message) {
+        const toast = $('#success-toast');
+        const messageEl = $('#success-message');
+        
+        messageEl.text(message);
+        // Remove the hidden display style and opacity classes
+        toast.css('display', 'block');
+        toast.removeClass('opacity-0 invisible').addClass('opacity-100 visible');
+        
+        setTimeout(function() {
+            closeSuccessToast();
+        }, 5000);
+    }
+
+    function closeErrorToast() {
+        const toast = $('#error-toast');
+        toast.addClass('opacity-0 invisible').removeClass('opacity-100 visible');
+        setTimeout(function() {
+            toast.css('display', 'none');
+        }, 300);
+    }
+
+    function closeSuccessToast() {
+        const toast = $('#success-toast');
+        toast.addClass('opacity-0 invisible').removeClass('opacity-100 visible');
+        setTimeout(function() {
+            toast.css('display', 'none');
+        }, 300);
+    }
+
+    // Registration session creation and form loading - MOVED from select_type.html
+    window.startRegistration = function(registrationType) {
+        // Show loading indicator
+        const loadingId = registrationType.toLowerCase() + '-loading';
+        const loadingElement = $('#' + loadingId);
+        if (loadingElement.length) {
+            loadingElement.removeClass('hidden');
+        }
+        
+        // Create registration session via AJAX
+        $.ajax({
+            url: '/registration/session',
+            method: 'POST',
+            data: { registration_type: registrationType },
+            dataType: 'json',
+            timeout: 10000,
+            success: function(response) {
+                // Hide loading indicator
+                if (loadingElement.length) {
+                    loadingElement.addClass('hidden');
+                }
+                
+                if (response.success) {
+                    // Store session data
+                    window.currentSessionId = response.session_id;
+                    window.currentRegistrationType = response.registration_type;
+                    
+                    // Load the appropriate form template
+                    loadRegistrationForm(response.session_id, response.registration_type);
+                    
+                    // showSuccessToast('Sessão criada com sucesso!');
+                } else {
+                    showErrorToast(response.error || 'Erro ao criar sessão de cadastro.');
+                }
+            },
+            error: function(xhr, status, error) {
+                // Hide loading indicator
+                if (loadingElement.length) {
+                    loadingElement.addClass('hidden');
+                }
+                
+                console.error('Erro ao criar sessão:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
+                showErrorToast('Erro ao criar sessão de cadastro. Tente novamente.');
+            }
+        });
+    };
+
+    // Load registration form based on type
+    window.loadRegistrationForm = function(sessionId, registrationType) {
+        // Determine which form template to load
+        const formUrl = registrationType === 'CNPJ'
+            ? '/registration/cnpj/form'
+            : '/registration/cpf/form';
+        
+        // Load form via AJAX
+        $.ajax({
+            url: formUrl,
+            method: 'GET',
+            data: { session_id: sessionId },
+            dataType: 'html',
+            timeout: 10000,
+            success: function(html) {
+                // Replace the registration form container with the loaded form
+                $('#registration-form').html(html);
+                
+                // Initialize form-specific functionality
+                initializeRegistrationForm(sessionId, registrationType);
+            },
+            error: function(xhr, status, error) {
+                console.error('Erro ao carregar formulário:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
+                showErrorToast('Erro ao carregar formulário. Tente novamente.');
+            }
+        });
+    };
+
+    // Initialize registration form after loading
+    window.initializeRegistrationForm = function(sessionId, registrationType) {
+        // Set up form submission handlers
+        setupFormSubmission(sessionId, registrationType);
+        
+        // Set up validation handlers
+        setupValidationHandlers();
+        
+        // Set up navigation handlers
+        setupNavigationHandlers(sessionId, registrationType);
+    };
+
+    // Set up form submission for step 1
+    function setupFormSubmission(sessionId, registrationType) {
+        const form = $('#registration-form form');
+        if (form.length === 0) return;
+        
+        form.on('submit', function(e) {
+            e.preventDefault();
+            
+            // Show loading
+            const submitButton = form.find('button[type="submit"]');
+            submitButton.prop('disabled', true).addClass('opacity-50');
+            
+            // Collect form data into a JSON object
+            const formData = {};
+            const formElements = form[0].elements;
+            
+            for (let i = 0; i < formElements.length; i++) {
+                const element = formElements[i];
+                // Skip reCAPTCHA response field and submit buttons
+                if (element.name && element.type !== 'submit') {
+                    if (element.type === 'checkbox') {
+                        formData[element.name] = element.checked;
+                    } else if (element.type === 'radio') {
+                        // Only include radio buttons that are checked
+                        if (element.checked) {
+                            formData[element.name] = element.value;
+                        }
+                    } else {
+                        formData[element.name] = element.value;
+                    }
+                }
+            }
+            
+            // Submit step 1 data as JSON with session_id as query parameter
+            const step1Url = registrationType === 'CNPJ'
+                ? `/registration/cnpj/step1?session_id=${sessionId}`
+                : `/registration/cpf/step1?session_id=${sessionId}`;
+
+            $.ajax({
+                url: step1Url,
+                method: 'POST',
+                data: JSON.stringify(formData),
+                contentType: 'application/json',
+                dataType: 'json',
+                timeout: 15000,
+                success: function(response) {
+                    submitButton.prop('disabled', false).removeClass('opacity-50');
+                    
+                    if (response.success) {
+                        // Load step 2 form
+                        loadStep2Form(sessionId, registrationType, response.data);
+                    } else {
+                        // Show validation errors
+                        if (response.field_errors) {
+                            showFieldErrors(response.field_errors);
+                        } else if (response.error) {
+                            showErrorToast(response.error);
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    submitButton.prop('disabled', false).removeClass('opacity-50');
+                    // console.error('Erro ao enviar formulário:', error);
+                    // console.error('Status:', status);
+                    // console.error('Response:', xhr.responseText);
+                    
+                    // Try to parse error response
+                    let errorMessage = 'Erro ao enviar formulário. Tente novamente.';
+                    if (xhr.responseText) {
+                        try {
+                            const errorData = JSON.parse(xhr.responseText);
+                            console.log(errorData);
+                            errorDetail = errorData.detail[0] || errorData.error || errorMessage;
+                            errorMessage = 'O valor "' + errorDetail.input + '" não é válido.'
+                        } catch (e) {
+                            errorMessage = xhr.responseText;
+                        }
+                    }
+                    
+                    // Ensure the error message is displayed to the user
+                    // console.error('Error message to display:', errorMessage);
+                    
+                    // Try multiple methods to show the error
+                    try {
+                        // Method 1: Use the toast system
+                        showErrorToast(errorMessage);
+                        const fieldId = errorDetail.loc[errorDetail.loc.length - 1];
+                        $("#"+fieldId).focus();
+                        
+                        // Method 2: Fallback to alert if toast fails
+                        setTimeout(function() {
+                            if (!$('#error-toast').hasClass('opacity-100')) {
+                                alert('Erro: ' + errorMessage);
+                            }
+                        }, 100);
+                        
+                        // Method 3: Show inline error message
+                        // const responseDiv = $('#step1-response');
+                        // if (responseDiv.length) {
+                        //     responseDiv.html(`<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">${errorMessage}</div>`);
+                        // }
+                        
+                    } catch (toastError) {
+                        console.error('Error showing toast:', toastError);
+                        // Final fallback - use browser alert
+                        alert('Erro: ' + errorMessage);
+                    }
+                }
+            });
+        });
+    }
+
+    // Load step 2 form (address form)
+    function loadStep2Form(sessionId, registrationType, step1Data) {
+        // Store step 1 data for potential back navigation
+        window.step1Data = step1Data;
+        
+        const step2Url = registrationType === 'CNPJ'
+            ? '/registration/cnpj/step2/form'
+            : '/registration/cpf/step2/form';
+        
+        $.ajax({
+            url: step2Url,
+            method: 'GET',
+            data: { session_id: sessionId },
+            dataType: 'html',
+            timeout: 10000,
+            success: function(html) {
+                $('#registration-form').html(html);
+                
+                // Initialize step 2 form
+                initializeStep2Form(sessionId, registrationType);
+            },
+            error: function(xhr, status, error) {
+                console.error('Erro ao carregar formulário de endereço:', error);
+                showErrorToast('Erro ao carregar formulário de endereço. Tente novamente.');
+            }
+        });
+    }
+
+    // Initialize step 2 form
+    function initializeStep2Form(sessionId, registrationType) {
+        const form = $('#registration-form form');
+        if (form.length === 0) return;
+        
+        // Initialize reCAPTCHA if container exists
+        if (document.getElementById('recaptcha-container')) {
+            initializeRecaptcha();
+        }
+        
+        // Set up form submission for step 2
+        form.on('submit', function(e) {
+            e.preventDefault();
+            
+            const submitButton = form.find('button[type="submit"]');
+            
+            // Validate reCAPTCHA first
+            if (!validateRecaptcha()) {
+                return;
+            }
+            
+            submitButton.prop('disabled', true).addClass('opacity-50');
+            
+            // Get reCAPTCHA token
+            const recaptchaToken = $('#recaptcha-token').val();
+            
+            // Collect form data into a JSON object
+            const formData = {};
+            const formElements = form[0].elements;
+            
+            for (let i = 0; i < formElements.length; i++) {
+                const element = formElements[i];
+                if (element.name && element.type !== 'submit' && element.name !== 'g-recaptcha-response') {
+                    if (element.type === 'checkbox') {
+                        formData[element.name] = element.checked;
+                    } else if (element.type === 'radio') {
+                        // Only include radio buttons that are checked
+                        if (element.checked) {
+                            formData[element.name] = element.value;
+                        }
+                    } else {
+                        formData[element.name] = element.value;
+                    }
+                }
+            }
+            
+            // Add session_id and recaptcha_token to the data
+            // formData.session_id = sessionId;
+            formData.recaptcha_token = recaptchaToken;
+            
+            const step2Url = registrationType === 'CNPJ'
+                ? `/registration/cnpj/step2?session_id=${sessionId}`
+                : `/registration/cpf/step2?session_id=${sessionId}`;
+            console.log(JSON.stringify(formData));
+            $.ajax({
+                url: step2Url,
+                method: 'POST',
+                data: JSON.stringify(formData),
+                contentType: 'application/json',
+                dataType: 'json',
+                timeout: 15000,
+                success: function(response) {
+                    submitButton.prop('disabled', false).removeClass('opacity-50');
+                    
+                    if (response.success) {
+                        // Registration completed successfully
+                        showSuccessToast('Cadastro realizado com sucesso!');
+                        
+                        // Display success message in the form container
+                        const successHtml = `
+                            <div class="mt-8 bg-green-50 border border-green-200 rounded-lg p-8 text-center">
+                                <div class="flex justify-center mb-4">
+                                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-check text-green-600 text-2xl"></i>
+                                    </div>
+                                </div>
+                                <h2 class="text-2xl font-bold text-green-800 mb-2">Cadastro Realizado com Sucesso!</h2>
+                                <p class="text-green-700 mb-4">Obrigado por se cadastrar! Em breve entraremos em contato!</p>
+                                <p class="text-sm text-green-600">Você será redirecionado em breve...</p>
+                            </div>
+                        `;
+                        
+                        // Replace form with success message
+                        $('#registration-form').html(successHtml);
+                        
+                        // Redirect to home page after a short delay
+                        setTimeout(function() {
+                            window.location.href = response.redirect_url || '/';
+                        }, 5000);
+                    } else {
+                        if (response.error) {
+                            showErrorToast(response.error);
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    submitButton.prop('disabled', false).removeClass('opacity-50');
+                    console.error('Erro ao completar cadastro:', error);
+                    
+                    // Reset reCAPTCHA on error
+                    if (window.recaptchaWidgetId) {
+                        grecaptcha.reset(window.recaptchaWidgetId);
+                        document.getElementById('recaptcha-token').value = '';
+                    }
+                    
+                    showErrorToast('Erro ao completar cadastro. Tente novamente.');
+                }
+            });
+        });
+        
+        // Set up back button handler
+        setupBackButton(sessionId, registrationType);
+    }
+    
+    // Initialize reCAPTCHA widget
+    function initializeRecaptcha() {
+        if (typeof grecaptcha !== 'undefined' && document.getElementById('recaptcha-container')) {
+            window.recaptchaWidgetId = grecaptcha.render('recaptcha-container', {
+                'sitekey': window.recaptchaSiteKey,
+                'callback': function(token) {
+                    // Success callback
+                    document.getElementById('recaptcha-token').value = token;
+                    document.getElementById('recaptcha-error').classList.add('hidden');
+                    console.log('reCAPTCHA verified successfully');
+                },
+                'expired-callback': function() {
+                    // Expired callback
+                    document.getElementById('recaptcha-token').value = '';
+                    console.log('reCAPTCHA expired');
+                },
+                'error-callback': function() {
+                    // Error callback
+                    document.getElementById('recaptcha-token').value = '';
+                    console.log('reCAPTCHA error');
+                }
+            });
+        }
+    }
+
+    // Set up back button to return to step 1 with pre-filled data
+    function setupBackButton(sessionId, registrationType) {
+        const backButton = $('#registration-form a[href="/registration"]');
+        if (backButton.length === 0) return;
+        
+        backButton.on('click', function(e) {
+            e.preventDefault();
+            
+            // Load step 1 form with pre-filled data
+            const step1Url = registrationType === 'CNPJ'
+                ? '/registration/cnpj/step1/form'
+                : '/registration/cpf/step1/form';
+            
+            $.ajax({
+                url: step1Url,
+                method: 'GET',
+                data: {
+                    session_id: sessionId,
+                    prefill_data: JSON.stringify(window.step1Data || {})
+                },
+                dataType: 'html',
+                timeout: 10000,
+                success: function(html) {
+                    $('#registration-form').html(html);
+                    
+                    // Re-initialize step 1 form
+                    initializeRegistrationForm(sessionId, registrationType);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Erro ao voltar para etapa 1:', error);
+                    showErrorToast('Erro ao voltar para etapa anterior. Tente novamente.');
+                }
+            });
+        });
+    }
+
+    // Set up validation handlers
+    function setupValidationHandlers() {
+        // CNPJ/CPF validation on blur
+        $(document).on('blur', '#cnpj', function() {
+            const cnpj = $(this).val().replace(/\D/g, '');
+            if (cnpj.length === 14) {
+                validateDocumentAJAX(cnpj, 'CNPJ');
+            }
+        });
+        
+        $(document).on('blur', '#cpf', function() {
+            const cpf = $(this).val().replace(/\D/g, '');
+            if (cpf.length === 11) {
+                validateDocumentAJAX(cpf, 'CPF');
+            }
+        });
+        
+        // CEP auto-fill
+        $(document).on('blur', '#cep', function() {
+            const cep = $(this).val().replace(/\D/g, '');
+            if (cep.length === 8) {
+                getAddressByCEP(cep);
+            }
+        });
+    }
+
+    // Set up navigation handlers
+    function setupNavigationHandlers(sessionId, registrationType) {
+        // Handle "Voltar" button
+        const backButton = $('#registration-form a[href="/registration"]');
+        if (backButton.length > 0) {
+            backButton.on('click', function(e) {
+                e.preventDefault();
+                // Return to registration type selection
+                window.location.href = '/registration';
+            });
+        }
     }
 
     // Error handling functions
@@ -298,30 +848,47 @@
                 $field.after(`<div class="field-error text-sm text-red-600 mt-1">${error}</div>`);
             }
         });
+        
+        // Also show as toast
+        const firstError = Object.values(fieldErrors)[0];
+        if (firstError) {
+            showErrorToast(firstError);
+        }
     }
-
-    function showGlobalError(message) {
-        // Remove existing global errors
-        $('#global-error').remove();
-        
-        // Show new global error
-        $('<div id="global-error" class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">' +
-            '<div class="flex">' +
-                '<div class="flex-shrink-0">' +
-                    '<svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">' +
-                        '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />' +
-                    '</svg>' +
-                '</div>' +
-                '<div class="ml-3">' +
-                    `<p class="text-sm text-red-700">${message}</p>` +
-                '</div>' +
-            '</div>' +
-          '</div>').insertBefore('form');
-        
-        // Auto-remove after 5 seconds
-        setTimeout(function() {
-            $('#global-error').fadeOut();
-        }, 5000);
+    
+    function showFieldError(fieldName, errorMessage) {
+        const $field = $(`[name="${fieldName}"]`);
+        if ($field.length) {
+            $field.addClass('border-red-500');
+            $field.after(`<div class="field-error text-sm text-red-600 mt-1">${errorMessage}</div>`);
+        }
+    }
+    
+    function focusOnField(fieldName) {
+        const $field = $(`[name="${fieldName}"]`);
+        if ($field.length) {
+            $field.focus();
+            // Scroll to field if needed
+            $field[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+    
+    function getFieldLabel(fieldName) {
+        const labels = {
+            'qual_seu_negocio': 'Tipo de Negócio',
+            'cnpj': 'CNPJ',
+            'razao_social': 'Razão Social',
+            'seu_nome': 'Seu Nome',
+            'sua_funcao': 'Sua Função',
+            'email': 'E-mail',
+            'celular': 'Celular',
+            'cpf': 'CPF',
+            'nome_completo': 'Nome Completo',
+            'genero': 'Gênero',
+            'perfil_compra': 'Perfil de Compra',
+            'qual_negocio_cpf': 'Tipo de Negócio'
+        };
+        return labels[fieldName] || fieldName;
     }
 
     // Form submission helpers
@@ -340,20 +907,60 @@
         form.submit();
     };
 
+    window.submitCNPJStep2 = function(sessionId) {
+        window.submitStep2(sessionId, 'cnpj');
+    };
+
     // Success message display
     window.showSuccessMessage = function(message) {
-        $('<div class="bg-green-50 border border-green-200 rounded-md p-4 mb-4">' +
-            '<div class="flex">' +
-                '<div class="flex-shrink-0">' +
-                    '<svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">' +
-                        '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />' +
-                    '</svg>' +
-                '</div>' +
-                '<div class="ml-3">' +
-                    `<p class="text-sm text-green-700">${message}</p>` +
-                '</div>' +
-            '</div>' +
-          '</div>').insertBefore('form');
+        showSuccessToast(message);
+    };
+
+    // Make toast functions globally available for base.html
+    window.closeErrorToast = closeErrorToast;
+    window.closeSuccessToast = closeSuccessToast;
+
+    // reCAPTCHA Implementation
+    window.recaptchaWidgetId = null;
+    window.recaptchaSiteKey = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'; // Test key - replace with your actual key
+    
+    // Initialize reCAPTCHA when API loads
+    window.onRecaptchaLoad = function() {
+        if (document.getElementById('recaptcha-container')) {
+            window.recaptchaWidgetId = grecaptcha.render('recaptcha-container', {
+                'sitekey': window.recaptchaSiteKey,
+                'callback': function(token) {
+                    // Success callback
+                    document.getElementById('recaptcha-token').value = token;
+                    document.getElementById('recaptcha-error').classList.add('hidden');
+                    console.log('reCAPTCHA verified successfully');
+                },
+                'expired-callback': function() {
+                    // Expired callback
+                    document.getElementById('recaptcha-token').value = '';
+                    console.log('reCAPTCHA expired');
+                },
+                'error-callback': function() {
+                    // Error callback
+                    document.getElementById('recaptcha-token').value = '';
+                    console.log('reCAPTCHA error');
+                }
+            });
+        }
+    };
+    
+    // Validate reCAPTCHA before form submission
+    window.validateRecaptcha = function() {
+        const token = document.getElementById('recaptcha-token').value;
+        const errorDiv = document.getElementById('recaptcha-error');
+        
+        if (!token) {
+            errorDiv.classList.remove('hidden');
+            return false;
+        }
+        
+        errorDiv.classList.add('hidden');
+        return true;
     };
 
 })(jQuery);

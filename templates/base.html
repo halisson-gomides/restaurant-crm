@@ -46,6 +46,9 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/css/style.css">
     
+    <!-- reCAPTCHA API -->
+    <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
+    
     {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-gray-50 font-sans">
@@ -104,7 +107,7 @@
                     <ul class="space-y-2">
                         <li class="text-sm text-gray-600">
                             <i class="fas fa-envelope mr-2"></i>
-                            contato@comprajai.com.br
+                            contato@{{company_name | lower | remove_accents}}.com.br
                         </li>
                         <li class="text-sm text-gray-600">
                             <i class="fas fa-phone mr-2"></i>
@@ -170,34 +173,34 @@
         });
         
         // Handle HTMX errors
-        document.addEventListener('htmx:responseError', function(e) {
-            showErrorToast('Erro de conexão. Tente novamente.');
-        });
+        // document.addEventListener('htmx:responseError', function(e) {
+        //     showErrorToast('Erro de conexão. Tente novamente.');
+        // });
         
         // Utility functions
-        function showErrorToast(message) {
-            const toast = document.getElementById('error-toast');
-            const messageEl = document.getElementById('error-message');
-            messageEl.textContent = message;
-            toast.classList.remove('translate-x-full');
-            setTimeout(() => closeErrorToast(), 5000);
-        }
+        // function showErrorToast(message) {
+        //     const toast = document.getElementById('error-toast');
+        //     const messageEl = document.getElementById('error-message');
+        //     messageEl.textContent = message;
+        //     toast.classList.remove('translate-x-full');
+        //     setTimeout(() => closeErrorToast(), 5000);
+        // }
         
-        function closeErrorToast() {
-            document.getElementById('error-toast').classList.add('translate-x-full');
-        }
+        // function closeErrorToast() {
+        //     document.getElementById('error-toast').classList.add('translate-x-full');
+        // }
         
-        function showSuccessToast(message) {
-            const toast = document.getElementById('success-toast');
-            const messageEl = document.getElementById('success-message');
-            messageEl.textContent = message;
-            toast.classList.remove('translate-x-full');
-            setTimeout(() => closeSuccessToast(), 5000);
-        }
+        // function showSuccessToast(message) {
+        //     const toast = document.getElementById('success-toast');
+        //     const messageEl = document.getElementById('success-message');
+        //     messageEl.textContent = message;
+        //     toast.classList.remove('translate-x-full');
+        //     setTimeout(() => closeSuccessToast(), 5000);
+        // }
         
-        function closeSuccessToast() {
-            document.getElementById('success-toast').classList.add('translate-x-full');
-        }
+        // function closeSuccessToast() {
+        //     document.getElementById('success-toast').classList.add('translate-x-full');
+        // }
         
         // Form formatting functions
         
