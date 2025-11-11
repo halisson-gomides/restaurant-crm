@@ -18,9 +18,9 @@
         
         <p class="mt-2 text-sm text-gray-600">
             {% if registration_type == 'CNPJ' %}
-                Sua empresa foi cadastrada com sucesso no sistema CompraJá!
+                Sua empresa foi cadastrada com sucesso no sistema {{ company_name }}
             {% else %}
-                Seu cadastro foi concluído com sucesso no sistema CompraJá!
+                Seu cadastro foi concluído com sucesso no sistema {{ company_name }}
             {% endif %}
         </p>
         
@@ -86,16 +86,13 @@
                     </h3>
                     <div class="mt-2 text-sm text-blue-700">
                         <p>
-                            {% if registration_type == 'CNPJ' %}
-                                Agora você pode configurar sua conta e começar a usar o sistema para gerenciar compras e estoque da sua empresa.
-                            {% else %}
-                                Agora você pode fazer login e começar a usar o sistema para suas compras pessoais ou de negócio.
-                            {% endif %}
+                            Agora basta aguardar. Nossa equipe entrará em contato o mais breve possível para entendermos suas
+                            necessidades a fim de prestarmos o serviço da forma que melhor te atenda.
                         </p>
                         <ul class="mt-2 list-disc list-inside space-y-1">
-                            <li>Faça login com suas credenciais</li>
-                            <li>Configure seu perfil</li>
-                            <li>Comece a usar o sistema</li>
+                            <li>O contato será em até 02 dias úteis.</li>
+                            <li>Se dará por e-mail ou WhatsApp.</li>
+                            <li>Fique Atento!</li>
                         </ul>
                     </div>
                 </div>
@@ -104,12 +101,13 @@
         
         <!-- Action Buttons -->
         <div class="mt-8 space-y-4">
+            <!-- 
             <a href="/auth/login" 
                class="w-full inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
                 <i class="fas fa-sign-in-alt mr-2"></i>
                 Fazer Login
             </a>
-            
+            -->
             <a href="/" 
                class="w-full inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 <i class="fas fa-home mr-2"></i>
@@ -123,10 +121,10 @@
                 Precisa de ajuda? Entre em contato conosco:
             </p>
             <div class="mt-2 flex justify-center space-x-6">
-                <a href="mailto:suporte@comprajai.com.br" 
+                <a href="mailto:suporte@{{company_name | lower | remove_accents}}.com.br" 
                    class="text-sm text-indigo-600 hover:text-indigo-500">
                     <i class="fas fa-envelope mr-1"></i>
-                    suporte@comprajai.com.br
+                    suporte@{{company_name | lower | remove_accents}}.com.br
                 </a>
                 <span class="text-sm text-gray-400">|</span>
                 <a href="tel:+5511999999999" 

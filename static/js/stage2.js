@@ -325,6 +325,7 @@
                 } else {
                     // Show error message
                     $(`#${type.toLowerCase()}-validation`).html(`<div class="text-red-600 text-sm mt-1">✗ ${data.message}</div>`);
+                    // $(`#${type.toLowerCase()}`).focus();
                 }
             },
             error: function(xhr, status, error) {
@@ -687,28 +688,54 @@
                     if (response.success) {
                         // Registration completed successfully
                         showSuccessToast('Cadastro realizado com sucesso!');
+                        // Redirect to dedicated success page
+                        window.location.href = `/registration/success/${registrationType}/${response.registration_id}`;
                         
                         // Display success message in the form container
-                        const successHtml = `
-                            <div class="mt-8 bg-green-50 border border-green-200 rounded-lg p-8 text-center">
-                                <div class="flex justify-center mb-4">
-                                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                                        <i class="fas fa-check text-green-600 text-2xl"></i>
-                                    </div>
-                                </div>
-                                <h2 class="text-2xl font-bold text-green-800 mb-2">Cadastro Realizado com Sucesso!</h2>
-                                <p class="text-green-700 mb-4">Obrigado por se cadastrar! Em breve entraremos em contato!</p>
-                                <p class="text-sm text-green-600">Você será redirecionado em breve...</p>
-                            </div>
-                        `;
+                        // const successHtml = `
+                        //     <div class="mt-8 bg-green-50 border border-green-200 rounded-lg p-8 text-center">
+                        //         <div class="flex justify-center mb-4">
+                        //             <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                        //                 <i class="fas fa-check text-green-600 text-2xl"></i>
+                        //             </div>
+                        //         </div>
+                        //         <h2 class="text-2xl font-bold text-green-800 mb-2">Cadastro Concluído!</h2>
+                        //         <p class="text-green-700 mb-4">Seu cadastro foi concluído com sucesso!</p>
+                        //     </div>
+
+                        //     <!-- Next Steps -->
+                        //     <div class="mt-8 bg-blue-50 rounded-lg p-4">
+                        //         <div class="flex">
+                        //             <div class="flex-shrink-0">
+                        //                 <i class="fas fa-info-circle text-blue-400"></i>
+                        //             </div>
+                        //             <div class="ml-3 text-left">
+                        //                 <h3 class="text-sm font-medium text-blue-800">
+                        //                     Próximos Passos
+                        //                 </h3>
+                        //                 <div class="mt-2 text-sm text-blue-700">
+                        //                     <p>
+                        //                         Agora basta aguardar. Nossa equipe entrará em contato o mais breve possível para entendermos melhor suas
+                        //                         necessidades a fim de prestarmos o serviço da forma que melhor te atenda.
+                        //                     </p>
+                        //                     <ul class="mt-2 list-disc list-inside space-y-1">
+                        //                         <li>Você receberá mensagem por WhatsApp em até 02 dias.</li>
+                        //                         <li>Também poderá receber e-mail do nosso time.</li>
+                        //                         <li>Fique Atento!</li>
+                        //                     </ul>
+                        //                 </div>
+                        //             </div>
+                        //         </div>
+                        //     </div>
+                        // `;
                         
-                        // Replace form with success message
-                        $('#registration-form').html(successHtml);
+                        // // Replace form with success message
+                        // $('#registration-form').html(successHtml);
                         
                         // Redirect to home page after a short delay
-                        setTimeout(function() {
-                            window.location.href = response.redirect_url || '/';
-                        }, 5000);
+                        // setTimeout(function() {
+                        //     window.location.href = response.redirect_url || '/';
+                        // }, 5000);
                     } else {
                         if (response.error) {
                             showErrorToast(response.error);
