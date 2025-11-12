@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Admin Login - Restaurant CRM{% endblock %}
+{% block title %}Login - {{company_name}}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -9,7 +9,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
         padding: 2rem 1rem;
     }
 
@@ -32,6 +32,15 @@
         font-weight: 700;
         color: #1f2937;
         margin-bottom: 0.5rem;
+        text-align: center;
+    }
+
+    .login-title .logo {
+        display: block;            /* faz a imagem ocupar a linha inteira */
+        margin: 0 auto 0.5rem;     /* centraliza e adiciona espaçamento abaixo */
+        width: 80px;               /* evite % para não ficar muito pequena */
+        max-width: 120px;          /* segurança extra */
+        height: auto;
     }
 
     .login-subtitle {
@@ -47,34 +56,6 @@
         margin-bottom: 1.5rem;
     }
 
-    .form-label {
-        display: block;
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: #374151;
-        margin-bottom: 0.5rem;
-    }
-
-    .form-input {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 2px solid #e5e7eb;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        transition: all 0.2s;
-        background-color: white;
-        color: #374151;
-    }
-
-    .form-input:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    .form-input::placeholder {
-        color: #9ca3af;
-    }
 
     .login-button {
         width: 100%;
@@ -128,29 +109,7 @@
         color: #5a67d8;
     }
 
-    .error-message {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        color: #dc2626;
-        padding: 0.75rem;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-        display: none;
-    }
 
-    .loading-spinner {
-        width: 16px;
-        height: 16px;
-        border: 2px solid #ffffff;
-        border-radius: 50%;
-        border-top-color: transparent;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
 
     /* CPF/CNPJ formatting helper */
     .input-helper {
@@ -181,11 +140,11 @@
     <div class="login-card">
         <div class="login-header">
             <div class="login-title">
-                <i class="fas fa-shield-alt mr-2"></i>
-                Admin Access
+                <img src="/static/img/180c71ee-6d5b-40ab-a8e1-062261ce86fe.png" alt="Descrição da Imagem" class="logo">
+                Acesso Administrativo
             </div>
             <div class="login-subtitle">
-                Enter your credentials to access the administration panel
+                Insira suas credenciais para acessa a área administrativa
             </div>
         </div>
 
@@ -202,24 +161,24 @@
                     id="username"
                     name="username"
                     class="form-input"
-                    placeholder="Enter your CPF or CNPJ"
+                    placeholder="Insira seu CPF ou CNPJ"
                     required
                     maxlength="18"
                 >
-                <div class="input-helper">Format: 000.000.000-00 (CPF) or 00.000.000/0000-00 (CNPJ)</div>
+                <div class="input-helper">Formato: 000.000.000-00 (CPF) ou 00.000.000/0000-00 (CNPJ)</div>
             </div>
 
             <div class="form-group">
                 <label for="password" class="form-label">
                     <i class="fas fa-lock mr-1"></i>
-                    Password
+                    Senha
                 </label>
                 <input
                     type="password"
                     id="password"
                     name="password"
                     class="form-input"
-                    placeholder="Enter your password"
+                    placeholder="Insira sua senha"
                     required
                 >
             </div>
@@ -227,17 +186,17 @@
             <button type="submit" id="login-button" class="login-button">
                 <span id="button-text">
                     <i class="fas fa-sign-in-alt mr-1"></i>
-                    Sign In
+                    Fazer Login
                 </span>
                 <div id="loading-spinner" class="loading-spinner" style="display: none;"></div>
             </button>
         </form>
 
         <div class="login-footer">
-            <p>Access restricted to system administrators only</p>
+            <p>Acesso restrito apenas a administradores do sistema</p>
             <a href="/" class="back-link">
                 <i class="fas fa-arrow-left mr-1"></i>
-                Back to Home
+                Início
             </a>
         </div>
     </div>
