@@ -838,6 +838,11 @@
                 validateDocumentAJAX(cpf, 'CPF');
             }
         });
+
+        $(document).on('blur', '#email', function() {
+            const email = $.trim($(this).val());
+            validateDocumentAJAX(email, 'EMAIL');
+        });
         
         // CEP auto-fill
         $(document).on('blur', '#cep', function() {

@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Login - Restaurant CRM{% endblock %}
+
+{% block extra_head %}
+<style>
+    .login-container {
+        min-height: calc(100vh - 120px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem 1rem;
+    }
+
+    .login-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 420px;
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .login-title {
+        font-size: 1.875rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .login-subtitle {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    .login-form {
+        space-y: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+        background-color: white;
+        color: #374151;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-input::placeholder {
+        color: #9ca3af;
+    }
+
+    .login-button {
+        width: 100%;
+        background: #667eea;
+        color: white;
+        padding: 0.75rem 1rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .login-button:hover {
+        background: #5a67d8;
+        transform: translateY(-1px);
+    }
+
+    .login-button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .login-footer {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .login-footer p {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .back-link {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+
+    .back-link:hover {
+        color: #5a67d8;
+    }
+
+    .error-message {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        display: none;
+    }
+
+    .loading-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* CPF/CNPJ formatting helper */
+    .input-helper {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    /* Responsive design */
+    @media (max-width: 640px) {
+        .login-container {
+            padding: 1rem;
+        }
+
+        .login-card {
+            padding: 2rem 1.5rem;
+        }
+
+        .login-title {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-title">
+                <i class="fas fa-shield-alt mr-2"></i>
+                Admin Access
+            </div>
+            <div class="login-subtitle">
+                Enter your credentials to access the administration panel
+            </div>
+        </div>
+
+        <div id="error-message" class="error-message"></div>
+
+        <form id="login-form" class="login-form">
+            <div class="form-group">
+                <label for="username" class="form-label">
+                    <i class="fas fa-id-card mr-1"></i>
+                    CPF/CNPJ
+                </label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    class="form-input"
+                    placeholder="Enter your CPF or CNPJ"
+                    required
+                    maxlength="18"
+                >
+                <div class="input-helper">Format: 000.000.000-00 (CPF) or 00.000.000/0000-00 (CNPJ)</div>
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">
+                    <i class="fas fa-lock mr-1"></i>
+                    Password
+                </label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="form-input"
+                    placeholder="Enter your password"
+                    required
+                >
+            </div>
+
+            <button type="submit" id="login-button" class="login-button">
+                <span id="button-text">
+                    <i class="fas fa-sign-in-alt mr-1"></i>
+                    Sign In
+                </span>
+                <div id="loading-spinner" class="loading-spinner" style="display: none;"></div>
+            </button>
+        </form>
+
+        <div class="login-footer">
+            <p>Access restricted to system administrators only</p>
+            <a href="/" class="back-link">
+                <i class="fas fa-arrow-left mr-1"></i>
+                Back to Home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/stage2.1.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeAdminLogin();
+    });
+</script>
+{% endblock %}

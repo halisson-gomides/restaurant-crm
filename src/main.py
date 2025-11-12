@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config import settings
 from .database import init_db, close_db, get_database
 from .api.v1.registration import router as registration_router
+from .api.auth import router as auth_router
 from .utils.templates import company_context
 from .utils.helpers import remove_accents
 from pathlib import Path
@@ -113,6 +114,7 @@ templates.env.filters['remove_accents'] = remove_accents
 
 # Include API routers
 app.include_router(registration_router)
+app.include_router(auth_router)
 
 # Homepage route
 @app.get("/", tags=["Pages"])
@@ -147,6 +149,36 @@ async def cpf_registration_page(request: Request, session_id: str):
     return templates.TemplateResponse("registration/cpf.html", {
         "request": request,
         "session_id": session_id,
+        **company_context(request)
+    })
+
+# Admin authentication routes
+@app.get("/auth/login", tags=["Admin Pages"])
+async def admin_login_page(request: Request):
+    """Admin login page."""
+    return templates.TemplateResponse("auth/login.html", {
+        "request": request,
+        **company_context(request)
+    })
+
+@app.get("/auth/dashboard", tags=["Admin Pages"])
+async def admin_dashboard_page(request: Request):
+    """Admin dashboard page."""
+    # Check if user is authenticated (this would be handled by middleware in production)
+    return templates.TemplateResponse("admin/dashboard.html", {
+        "request": request,
+        "user": {"first_name": "System", "last_name": "Administrator"},
+        "company_name": "Restaurant CRM",
+        **company_context(request)
+    })
+
+@app.get("/auth/registrations", tags=["Admin Pages"])
+async def admin_registrations_page(request: Request):
+    """Admin registrations management page."""
+    return templates.TemplateResponse("admin/registrations.html", {
+        "request": request,
+        "user": {"first_name": "System", "last_name": "Administrator"},
+        "company_name": "Restaurant CRM",
         **company_context(request)
     })
 
