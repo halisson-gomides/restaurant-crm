@@ -1,7 +1,8 @@
 """Authentication API routes for admin login system."""
 
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -17,9 +18,18 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
 
 
-@router.post("/login", response_model=Token)
+@router.get("/logout")
+async def logout():
+    """Logout endpoint - clears the auth cookie and redirects."""
+    response = RedirectResponse(url="/auth/login", status_code=302)
+    response.delete_cookie(key="admin_token", path="/", httponly=True)
+    return response
+
+
+@router.post("/login")
 async def login(
     user_data: UserLogin,
+    response: Response,
     db: AsyncSession = Depends(get_database)
 ):
     """Authenticate admin user and return access token."""
@@ -32,7 +42,7 @@ async def login(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
+            detail="Credenciais inválidas",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -44,7 +54,7 @@ async def login(
     if user.hashed_password != hashed_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
+            detail="Credenciais inválidas",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -52,19 +62,30 @@ async def login(
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account is disabled"
+            detail="Conta desativada"
         )
 
     if user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied. Admin privileges required."
+            detail="Acesso negado. Requer privilégio de administrador"
         )
 
     # Create access token
     access_token = create_access_token(
         data={"sub": user.username, "role": user.role},
         expires_delta=timedelta(minutes=60)  # 1 hour for admin sessions
+    )
+
+    # Set cookie for browser requests
+    response.set_cookie(
+        key="admin_token",
+        value=access_token,
+        httponly=True,  # Prevent JavaScript access for security
+        secure=False,   # Set to True in production with HTTPS
+        samesite="lax",
+        path="/",       # Make cookie available for all paths
+        max_age=3600    # 1 hour
     )
 
     return Token(access_token=access_token, token_type="bearer")
@@ -88,12 +109,27 @@ async def get_current_user_info(
 
 @router.get("/dashboard/stats")
 async def get_dashboard_stats(
-    db: AsyncSession = Depends(get_database),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    request: Request,
+    db: AsyncSession = Depends(get_database)
 ):
     """Get dashboard statistics for admin."""
+    # Try to get token from Authorization header first
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    else:
+        # Fall back to cookie
+        token = request.cookies.get("admin_token")
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+
     # Verify token
-    payload = verify_token(credentials.credentials)
+    payload = verify_token(token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -128,18 +164,20 @@ async def get_dashboard_stats(
     )
     total_users = user_count.scalar()
 
-    # Get recent registrations (last 5)
+    # Get recent registrations (last 10)
     recent_cnpj = await db.execute(
         select(CNPJRegistration.id, CNPJRegistration.razao_social.label("name"),
-               CNPJRegistration.email, CNPJRegistration.created_at)
+               CNPJRegistration.cnpj.label("document"), CNPJRegistration.email,
+               CNPJRegistration.celular.label("phone"), CNPJRegistration.created_at)
         .order_by(CNPJRegistration.created_at.desc())
-        .limit(3)
+        .limit(5)
     )
     recent_cpf = await db.execute(
         select(CPFRegistration.id, CPFRegistration.nome_completo.label("name"),
-               CPFRegistration.email, CPFRegistration.created_at)
+               CPFRegistration.cpf.label("document"), CPFRegistration.email,
+               CPFRegistration.celular.label("phone"), CPFRegistration.created_at)
         .order_by(CPFRegistration.created_at.desc())
-        .limit(3)
+        .limit(5)
     )
 
     recent_registrations = []
@@ -149,7 +187,9 @@ async def get_dashboard_stats(
         recent_registrations.append({
             "id": reg.id,
             "name": reg.name,
+            "document": reg.document,
             "email": reg.email,
+            "phone": reg.phone,
             "type": "CNPJ",
             "created_at": reg.created_at.isoformat()
         })
@@ -158,14 +198,16 @@ async def get_dashboard_stats(
         recent_registrations.append({
             "id": reg.id,
             "name": reg.name,
+            "document": reg.document,
             "email": reg.email,
+            "phone": reg.phone,
             "type": "CPF",
             "created_at": reg.created_at.isoformat()
         })
 
     # Sort by creation date (most recent first)
     recent_registrations.sort(key=lambda x: x["created_at"], reverse=True)
-    recent_registrations = recent_registrations[:5]
+    recent_registrations = recent_registrations[:10]
 
     return {
         "total_cnpj_registrations": total_cnpj,

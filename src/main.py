@@ -3,19 +3,23 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
 from .database import init_db, close_db, get_database
 from .api.v1.registration import router as registration_router
 from .api.auth import router as auth_router
+from .api.deps import get_current_user
+from .models.client_registration import User
 from .utils.templates import company_context
 from .utils.helpers import remove_accents
+from .utils.security import verify_token
+from sqlalchemy import select
 from pathlib import Path
 
 
@@ -122,6 +126,7 @@ async def home(request: Request):
     """Homepage."""
     return templates.TemplateResponse("registration/select_type.html", {
         "request": request,
+        "user": None,
         **company_context(request)
     })
 
@@ -131,8 +136,10 @@ async def registration_page(request: Request):
     """Registration type selection page."""
     return templates.TemplateResponse("registration/select_type.html", {
         "request": request,
+        "user": None,
         **company_context(request)
     })
+
 
 @app.get("/registration/cnpj/{session_id}", tags=["Pages"])
 async def cnpj_registration_page(request: Request, session_id: str):
@@ -140,8 +147,10 @@ async def cnpj_registration_page(request: Request, session_id: str):
     return templates.TemplateResponse("registration/cnpj.html", {
         "request": request,
         "session_id": session_id,
+        "user": None,
         **company_context(request)
     })
+
 
 @app.get("/registration/cpf/{session_id}", tags=["Pages"])
 async def cpf_registration_page(request: Request, session_id: str):
@@ -149,8 +158,10 @@ async def cpf_registration_page(request: Request, session_id: str):
     return templates.TemplateResponse("registration/cpf.html", {
         "request": request,
         "session_id": session_id,
+        "user": None,
         **company_context(request)
     })
+
 
 # Admin authentication routes
 @app.get("/auth/login", tags=["Admin Pages"])
@@ -158,29 +169,71 @@ async def admin_login_page(request: Request):
     """Admin login page."""
     return templates.TemplateResponse("auth/login.html", {
         "request": request,
+        "user": None,
         **company_context(request)
     })
 
-@app.get("/auth/dashboard", tags=["Admin Pages"])
-async def admin_dashboard_page(request: Request):
+
+@app.get("/admin/dashboard", tags=["Admin Pages"])
+async def admin_dashboard_page(request: Request, db: AsyncSession = Depends(get_database)):
     """Admin dashboard page."""
-    # Check if user is authenticated (this would be handled by middleware in production)
-    return templates.TemplateResponse("admin/dashboard.html", {
-        "request": request,
-        "user": {"first_name": "System", "last_name": "Administrator"},
-        "company_name": "Restaurant CRM",
-        **company_context(request)
-    })
+    try:
+        # Extract token from cookie
+        token = request.cookies.get("admin_token")
+        if not token:
+            return RedirectResponse(url="/auth/login", status_code=302)
 
-@app.get("/auth/registrations", tags=["Admin Pages"])
-async def admin_registrations_page(request: Request):
+        payload = verify_token(token)
+        if not payload:
+            return RedirectResponse(url="/auth/login", status_code=302)
+
+        username = payload.get("sub")
+        if not username:
+            return RedirectResponse(url="/auth/login", status_code=302)
+
+        result = await db.execute(select(User).where(User.username == username))
+        user = result.scalar_one_or_none()
+        if not user or not user.is_active or user.role != "admin":
+            return RedirectResponse(url="/auth/login", status_code=302)
+
+        return templates.TemplateResponse("admin/dashboard.html", {
+            "request": request,
+            "user": user,
+            **company_context(request)
+        })
+    except Exception:
+        return RedirectResponse(url="/auth/login", status_code=302)
+
+
+@app.get("/admin/registrations", tags=["Admin Pages"])
+async def admin_registrations_page(request: Request, db: AsyncSession = Depends(get_database)):
     """Admin registrations management page."""
-    return templates.TemplateResponse("admin/registrations.html", {
-        "request": request,
-        "user": {"first_name": "System", "last_name": "Administrator"},
-        "company_name": "Restaurant CRM",
-        **company_context(request)
-    })
+    try:
+        # Extract token from cookie
+        token = request.cookies.get("admin_token")
+        if not token:
+            return RedirectResponse(url="/auth/login", status_code=302)
+
+        payload = verify_token(token)
+        if not payload:
+            return RedirectResponse(url="/auth/login", status_code=302)
+
+        username = payload.get("sub")
+        if not username:
+            return RedirectResponse(url="/auth/login", status_code=302)
+
+        result = await db.execute(select(User).where(User.username == username))
+        user = result.scalar_one_or_none()
+        if not user or not user.is_active or user.role != "admin":
+            return RedirectResponse(url="/auth/login", status_code=302)
+
+        return templates.TemplateResponse("admin/registrations.html", {
+            "request": request,
+            "user": user,
+            **company_context(request)
+        })
+    except Exception:
+        return RedirectResponse(url="/auth/login", status_code=302)
 
 
 @app.get("/registration/success/{registration_type}/{registration_id}", tags=["Pages"])
@@ -228,6 +281,7 @@ async def registration_success(
         "registration_id": registration_id,
         "registration_data": registration_data,
         "created_at": formatted_date,
+        "user": None,
         **company_context(request)
     })
 

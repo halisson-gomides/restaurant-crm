@@ -42,29 +42,31 @@
                     if (response.access_token) {
                         // Store token and redirect to dashboard
                         localStorage.setItem('admin_token', response.access_token);
-                        showLoginSuccess('Login successful! Redirecting...');
+                        // showLoginSuccess('Login successful! Redirecting...');
+                        showSuccessToast('Login realizado com sucesso! Redirecionando...');
 
                         setTimeout(function() {
-                            window.location.href = '/auth/dashboard';
+                            window.location.href = '/admin/dashboard';
                         }, 1000);
                     } else {
-                        showLoginError('Invalid response from server');
+                        // showLoginError('Invalid response from server');
+                        showErrorToast('Não foi possível realizar o Login.');
                     }
                 },
                 error: function(xhr, status, error) {
                     setLoginLoading(false);
 
-                    let errorMessage = 'Login failed. Please try again.';
+                    let errorMessage = 'Login falhou. Por favor tente novamente.';
 
                     if (xhr.responseJSON && xhr.responseJSON.detail) {
                         errorMessage = xhr.responseJSON.detail;
                     } else if (xhr.status === 401) {
-                        errorMessage = 'Invalid username or password';
+                        errorMessage = 'Credenciais inválidas';
                     } else if (xhr.status === 0) {
-                        errorMessage = 'Unable to connect to server';
+                        errorMessage = 'Servidor indisponível';
                     }
 
-                    showLoginError(errorMessage);
+                    showErrorToast(errorMessage);
                 }
             });
         });
@@ -104,30 +106,6 @@
         }
     }
 
-    // Show login error message
-    function showLoginError(message) {
-        const errorDiv = $('#error-message');
-        errorDiv.text(message).show();
-
-        // Auto-hide after 5 seconds
-        setTimeout(function() {
-            errorDiv.fadeOut();
-        }, 5000);
-    }
-
-    // Show login success message
-    function showLoginSuccess(message) {
-        const errorDiv = $('#error-message');
-        errorDiv.removeClass('error-message')
-                .addClass('success-message')
-                .css({
-                    'background': '#d1fae5',
-                    'border-color': '#a7f3d0',
-                    'color': '#065f46'
-                })
-                .text(message)
-                .show();
-    }
 
     // Admin dashboard functionality
     window.initializeAdminDashboard = function() {
@@ -137,8 +115,8 @@
 
     // Load dashboard statistics
     function loadDashboardStats() {
-        // Show loading state
-        $('#stats-grid').html('<div class="col-span-full text-center py-8"><div class="loading-spinner mx-auto"></div><p class="mt-2 text-gray-600">Loading statistics...</p></div>');
+        // Show loading state on individual stat cards
+        $('.stat-number').text('...');
 
         $.ajax({
             url: '/auth/dashboard/stats',
@@ -151,56 +129,71 @@
             },
             error: function(xhr) {
                 console.error('Failed to load dashboard stats:', xhr);
-                $('#stats-grid').html('<div class="col-span-full text-center py-8 text-red-600">Failed to load statistics</div>');
+                $('.stat-number').text('Erro');
+                $('#recent-registrations tbody').html('<tr><td colspan="6" class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar estatísticas</p></td></tr>');
             }
         });
     }
 
     // Render dashboard statistics
     function renderDashboardStats(stats) {
-        const statsHtml = `
-            <div class="stat-card cnpj">
-                <div class="stat-header">
-                    <div class="stat-icon">
-                        <i class="fas fa-building"></i>
-                    </div>
-                </div>
-                <div class="stat-number">${stats.total_cnpj_registrations || 0}</div>
-                <div class="stat-label">Cadastros CNPJ</div>
-            </div>
+        // Update stat numbers
+        $('#cnpj-count').text(stats.total_cnpj_registrations || 0);
+        $('#cpf-count').text(stats.total_cpf_registrations || 0);
+        $('#org-count').text(stats.total_organizations || 0);
+        $('#user-count').text(stats.total_users || 0);
 
-            <div class="stat-card cpf">
-                <div class="stat-header">
-                    <div class="stat-icon">
-                        <i class="fas fa-user"></i>
-                    </div>
-                </div>
-                <div class="stat-number">${stats.total_cpf_registrations || 0}</div>
-                <div class="stat-label">Cadastros CPF</div>
-            </div>
+        // Render recent registrations
+        renderRecentRegistrations(stats.recent_registrations || []);
+    }
 
-            <div class="stat-card organizations">
-                <div class="stat-header">
-                    <div class="stat-icon">
-                        <i class="fas fa-sitemap"></i>
-                    </div>
-                </div>
-                <div class="stat-number">${stats.total_organizations || 0}</div>
-                <div class="stat-label">Organizações</div>
-            </div>
+    // Render recent registrations
+    function renderRecentRegistrations(registrations) {
+        if (!registrations || registrations.length === 0) {
+            $('#recent-registrations tbody').html(`
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>Nenhum cadastro recente encontrado</p>
+                    </td>
+                </tr>
+            `);
+            return;
+        }
 
-            <div class="stat-card users">
-                <div class="stat-header">
-                    <div class="stat-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                </div>
-                <div class="stat-number">${stats.total_users || 0}</div>
-                <div class="stat-label">Usuários</div>
-            </div>
-        `;
+        let html = '';
+        registrations.forEach(reg => {
+            const typeClass = reg.type.toLowerCase();
+            const documentFormatted = reg.type === 'CNPJ'
+                ? formatCNPJ(reg.document)
+                : formatCPF(reg.document);
+            const phoneFormatted = window.formatPhone ? window.formatPhone(reg.phone || '') : (reg.phone || '-');
 
-        $('#stats-grid').html(statsHtml);
+            html += `
+                <tr>
+                    <td>
+                        <span class="registration-type ${typeClass}">${reg.type}</span>
+                    </td>
+                    <td>
+                        <div class="registration-name">${reg.name}</div>
+                    </td>
+                    <td>
+                        <div class="registration-document">${documentFormatted}</div>
+                    </td>
+                    <td>
+                        <div class="registration-phone">${phoneFormatted}</div>
+                    </td>
+                    <td>
+                        <div class="registration-email">${reg.email}</div>
+                    </td>
+                    <td>
+                        <div class="registration-date">${new Date(reg.created_at).toLocaleDateString('pt-BR')}</div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        $('#recent-registrations tbody').html(html);
     }
 
     // Set up dashboard action buttons
@@ -413,11 +406,43 @@
         }
     };
 
+    // Dashboard dropdown functionality
+    window.initializeDashboardDropdown = function() {
+        const $dashboardMenu = $('#dashboard-menu');
+        const $dashboardDropdown = $('#dashboard-dropdown');
+
+        if ($dashboardMenu.length && $dashboardDropdown.length) {
+            $dashboardMenu.on('click', function(e) {
+                e.stopPropagation();
+                $dashboardDropdown.toggleClass('hidden');
+            });
+
+            // Close dropdown when clicking outside
+            $(document).on('click', function(e) {
+                if (!$dashboardMenu.is(e.target) && $dashboardMenu.has(e.target).length === 0 &&
+                    !$dashboardDropdown.is(e.target) && $dashboardDropdown.has(e.target).length === 0) {
+                    $dashboardDropdown.addClass('hidden');
+                }
+            });
+        }
+    };
+
+
     // Utility functions
     window.logout = function() {
+        // Clear JWT token from localStorage/sessionStorage
         localStorage.removeItem('admin_token');
-        window.location.href = '/auth/login';
+        sessionStorage.removeItem('admin_token');
+
+        // Clear any auth headers
+        if (typeof htmx !== 'undefined' && htmx.config && htmx.config.headers) {
+            delete htmx.config.headers['Authorization'];
+        }
+
+        // Redirect to logout endpoint (clears cookie and redirects to login)
+        window.location.href = '/auth/logout';
     };
+
 
     // Check if user is authenticated
     window.checkAuth = function() {
@@ -428,6 +453,13 @@
     };
 
 })(jQuery);
+
+// Initialize dashboard dropdown on page load if elements exist
+$(document).ready(function() {
+    if ($('#dashboard-menu').length) {
+        window.initializeDashboardDropdown();
+    }
+});
 
 // Ensure jQuery is loaded
 if (typeof jQuery === 'undefined') {

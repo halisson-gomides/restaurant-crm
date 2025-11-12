@@ -949,6 +949,8 @@
     };
 
     // Make toast functions globally available for base.html
+    window.showErrorToast = showErrorToast;
+    window.showSuccessToast = showSuccessToast;
     window.closeErrorToast = closeErrorToast;
     window.closeSuccessToast = closeSuccessToast;
 

@@ -1,7 +1,6 @@
 """API dependencies for authentication and database access."""
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -11,23 +10,36 @@ from ..utils.security import verify_token
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+    request: Request,
     db: AsyncSession = Depends(get_database)
 ) -> User:
-    """Get current authenticated user from JWT token."""
+    """Get current authenticated user from JWT token (header or cookie)."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    token = credentials.credentials
+    token = None
+
+    # Try Authorization header first
+    authorization = request.headers.get("Authorization")
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]  # Remove "Bearer " prefix
+
+    # Try cookie if no header token
+    if not token:
+        token = request.cookies.get("admin_token")
+
+    if not token:
+        raise credentials_exception
+
     payload = verify_token(token)
     if payload is None:
         raise credentials_exception
 
-    username: str = payload.get("sub")
-    if username is None:
+    username = payload.get("sub")
+    if not isinstance(username, str):
         raise credentials_exception
 
     result = await db.execute(select(User).where(User.username == username))

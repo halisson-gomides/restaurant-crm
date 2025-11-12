@@ -162,7 +162,7 @@
     .action-button {
         display: flex;
         align-items: center;
-        padding: 1rem;
+        padding: 0.7rem;
         background: #f8fafc;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
@@ -205,62 +205,77 @@
         color: #667eea;
     }
 
-    .registration-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
+    .registration-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
     }
 
-    .registration-item {
-        display: flex;
-        align-items: center;
-        padding: 1rem;
-        background: #f8fafc;
-        border-radius: 8px;
-        border: 1px solid #e5e7eb;
+    .registration-table th,
+    .registration-table td {
+        padding: 0.75rem 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
     }
 
-    .registration-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        margin-right: 1rem;
+    .registration-table th {
+        background: #f9fafb;
         font-weight: 600;
+        color: #374151;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
-    .registration-item.cnpj .registration-icon {
+    .registration-table tbody tr:hover {
+        background: #f9fafb;
+    }
+
+    .registration-type {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        width: fit-content;
+    }
+
+    .registration-type.cnpj {
         background-color: #dbeafe;
         color: #3b82f6;
     }
 
-    .registration-item.cpf .registration-icon {
+    .registration-type.cpf {
         background-color: #d1fae5;
         color: #10b981;
-    }
-
-    .registration-info {
-        flex: 1;
     }
 
     .registration-name {
         font-weight: 600;
         color: #1f2937;
-        margin-bottom: 0.25rem;
+    }
+
+    .registration-document {
+        color: #6b7280;
+        font-family: monospace;
+        font-size: 0.8rem;
+    }
+
+    .registration-phone {
+        color: #6b7280;
     }
 
     .registration-email {
         color: #6b7280;
-        font-size: 0.875rem;
-        margin-bottom: 0.25rem;
     }
 
     .registration-date {
         color: #9ca3af;
         font-size: 0.75rem;
+    }
+
+    .table-container {
+        overflow-x: auto;
     }
 
     .empty-state {
@@ -276,17 +291,15 @@
     }
 
     .refresh-button {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
         background: #667eea;
         color: white;
         border: none;
-        padding: 0.5rem 1rem;
+        padding: 0.7rem 1rem;
         border-radius: 6px;
         font-size: 0.875rem;
         cursor: pointer;
         transition: all 0.2s;
+        white-space: nowrap;
     }
 
     .refresh-button:hover {
@@ -318,14 +331,28 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <div class="dashboard-header" style="position: relative;">
-        <button class="refresh-button" id="refresh-stats">
-            <i class="fas fa-sync-alt mr-1"></i>
-            Atualizar
-        </button>
-
-        <div class="dashboard-title">Dashboard Administrativo</div>
-        <div class="dashboard-subtitle">Visão geral do sistema e estatísticas</div>
+    <div class="dashboard-header">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+            <div>
+                <div class="dashboard-title">Dashboard Administrativo</div>
+                <div class="dashboard-subtitle">Visão geral do sistema e estatísticas</div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <button class="refresh-button" id="refresh-stats">
+                    <i class="fas fa-sync-alt mr-1"></i>
+                    Atualizar
+                </button>
+                <!-- Quick Actions -->
+                <a href="/admin/registrations" class="action-button">
+                    <i class="fas fa-list-alt"></i>
+                    Gerenciar Cadastros
+                </a>
+                <button class="action-button" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Sair
+                </button>
+            </div>
+        </div>
 
         <div class="welcome-user">
             <h3>
@@ -379,30 +406,32 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="quick-actions">
-        <h3><i class="fas fa-bolt mr-2"></i>Ações Rápidas</h3>
-        <div class="actions-grid">
-            <a href="/auth/registrations" class="action-button">
-                <i class="fas fa-list-alt"></i>
-                Gerenciar Cadastros
-            </a>
-            <a href="#" class="action-button" onclick="logout()">
-                <i class="fas fa-sign-out-alt"></i>
-                Sair do Sistema
-            </a>
-        </div>
-    </div>
 
     <!-- Recent Registrations -->
     <div class="recent-registrations">
         <h3><i class="fas fa-clock"></i>Cadastros Recentes</h3>
 
-        <div class="registration-list" id="recent-registrations">
-            <div class="empty-state">
-                <i class="fas fa-inbox"></i>
-                <p>Nenhum cadastro recente encontrado</p>
-            </div>
+        <div class="table-container">
+            <table class="registration-table" id="recent-registrations">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Nome/Razão Social</th>
+                        <th>CPF/CNPJ</th>
+                        <th>Telefone</th>
+                        <th>E-mail</th>
+                        <th>Data</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>Nenhum cadastro recente encontrado</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

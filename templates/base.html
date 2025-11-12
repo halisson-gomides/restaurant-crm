@@ -63,14 +63,42 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="/" class="text-gray-500 hover:text-gray-700 text-sm">
-                        <i class="fas fa-home mr-1"></i>
-                        Início
-                    </a>
-                    <a href="/auth/login" class="text-gray-500 hover:text-gray-700 text-sm">
-                        <i class="fas fa-sign-in-alt mr-1"></i>
-                        Login
-                    </a>
+                    {% if user %}
+                        <span class="text-gray-500 text-sm">
+                            Olá, {{ user.first_name or 'Admin' }}
+                        </span>
+                        <div class="relative">
+                            <button class="text-gray-500 hover:text-gray-700 text-sm flex items-center" id="dashboard-menu">
+                                <i class="fas fa-cog mr-1"></i>
+                                Dashboard
+                                <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                            </button>
+                            <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 hidden" id="dashboard-dropdown">
+                                <a href="/admin/dashboard" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-tachometer-alt mr-2"></i>
+                                    Dashboard
+                                </a>
+                                <a href="/admin/registrations" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-users mr-2"></i>
+                                    Gerenciar Cadastros
+                                </a>
+                                <hr class="border-gray-200">
+                                <button onclick="logout()" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>
+                                    Sair
+                                </button>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="/" class="text-gray-500 hover:text-gray-700 text-sm">
+                            <i class="fas fa-home mr-1"></i>
+                            Início
+                        </a>
+                        <a href="/auth/login" class="text-gray-500 hover:text-gray-700 text-sm">
+                            <i class="fas fa-sign-in-alt mr-1"></i>
+                            Login
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -203,7 +231,7 @@
         // }
         
         // Form formatting functions
-        
+
     </script>
     
     <!-- Stage 2 JavaScript -->
