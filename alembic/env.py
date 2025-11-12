@@ -18,9 +18,8 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from src.models.base import Base
-# target_metadata = Base.metadata
-target_metadata = None
+from src.models import Base
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -67,8 +66,12 @@ async def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    url = config.get_main_option("sqlalchemy.url")
+    if url is None:
+        raise ValueError("Database URL is not configured in alembic.ini")
+        
     connectable = create_async_engine(
-        config.get_main_option("sqlalchemy.url"),
+        url,
         poolclass=pool.NullPool,
     )
 

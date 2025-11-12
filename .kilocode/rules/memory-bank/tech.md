@@ -5,10 +5,10 @@
 ### Container Setup
 - **Docker**: Complete development environment using Docker Compose
 - **Base Image**: `ghcr.io/astral-sh/uv:python3.12-bookworm-slim`
-- **Development Ports**: 
+- **Development Ports**:
   - Application: 8001
   - PostgreSQL: 5432
-- **Container Names**: 
+- **Container Names**:
   - App container: `app-restaurant`
   - Database container: `db-restaurant`
 
@@ -27,66 +27,110 @@
 - **Package Manager**: uv
 - **Database**: PostgreSQL with async operations
 - **Authentication**: Session-based with role validation
-- **Payment Processing**: Stripe integration
+- **Payment Processing**: Stripe integration (Stage 5 planned)
+- **Migration System**: Alembic with async support
+- **Validation**: Pydantic models
+- **Password Hashing**: bcrypt via passlib
 
 ### Frontend Technologies
 - **Template Engine**: Jinja2
 - **Dynamic Interactions**: HTMX
 - **Styling**: CSS framework (TBD)
 - **Design Requirements**: Clean, sober, elegant interface
+- **JavaScript**: Vanilla JS for HTMX interactions
+- **Responsive Design**: Mobile-first approach
 
 ### Development Tools
 - **Testing**: Pytest framework
 - **Version Control**: Git
 - **Containerization**: Docker + Docker Compose
 - **Development Container**: VSCode devcontainer
+- **Migration Management**: Alembic
 
 ### Dependency Management
 - **Python Dependencies**: Managed via `pyproject.toml`
 - **Virtual Environment**: Managed through uv
 - **Build System**: uv-based project management
 
-### Key Dependencies (Planned)
-- **FastAPI**: Web framework
-- **asyncpg**: PostgreSQL async driver
-- **python-jose**: JWT handling
-- **stripe**: Payment processing
-- **pytest**: Testing framework
-- **pydantic**: Data validation
-- **sqlalchemy**: ORM (optional, depending on approach)
-- **uvicorn**: ASGI server
+### Key Dependencies (Implemented)
+- **FastAPI**: Web framework ✅ Implemented
+- **asyncpg**: PostgreSQL async driver ✅ Implemented
+- **python-jose**: JWT handling ✅ Framework ready (Stage 3)
+- **stripe**: Payment processing ⏳ Stage 5
+- **pytest**: Testing framework ✅ Implemented
+- **pydantic**: Data validation ✅ Implemented
+- **sqlalchemy**: ORM with async support ✅ Implemented
+- **uvicorn**: ASGI server ✅ Implemented
+- **httpx**: HTTP client for external APIs ✅ Implemented (ViaCEP)
+- **passlib**: Password hashing ✅ Implemented
+- **alembic**: Database migrations ✅ Implemented
 
 ## Development Workflow
 
-### Project Structure (Planned)
+### Project Structure (Implemented)
 ```
 restaurant-crm/
 ├── src/                    # Source code
-├── tests/                  # Test files
-├── migrations/             # Database migrations
-├── static/                 # Static assets
-├── templates/              # Jinja2 templates
-├── config/                 # Configuration files
-└── docs/                   # Documentation
+│   ├── main.py            # FastAPI application entry point ✅
+│   ├── config.py          # Configuration management ✅
+│   ├── database.py        # Database connection and session ✅
+│   ├── models/            # SQLAlchemy models ✅
+│   │   ├── __init__.py    # Model imports ✅
+│   │   ├── base.py        # Base model class ✅
+│   │   └── client_registration.py # Registration models ✅
+│   ├── schemas/           # Pydantic schemas ✅
+│   │   ├── __init__.py
+│   │   └── client_registration.py # Registration schemas ✅
+│   ├── services/          # Business logic layer ✅
+│   │   ├── __init__.py
+│   │   ├── base_service.py # Base service class ✅
+│   │   └── client_registration_service.py # Registration service ✅
+│   ├── api/               # API routes ✅
+│   │   ├── __init__.py
+│   │   ├── deps.py        # Dependencies (auth, database) ✅
+│   │   └── v1/
+│   │       ├── __init__.py
+│   │       └── registration.py # Registration endpoints ✅
+│   └── utils/             # Utility functions ✅
+│       ├── __init__.py
+│       ├── helpers.py     # Helper functions ✅
+│       └── templates.py   # Template utilities ✅
+├── templates/             # Jinja2 templates ✅
+│   ├── base.html          # Base template ✅
+│   └── registration/      # Registration templates ✅
+├── static/                # Static assets ✅
+│   ├── css/style.css      # Styling ✅
+│   └── js/stage2.js       # Registration JavaScript ✅
+├── tests/                 # Test files ✅
+├── alembic/               # Database migrations ✅
+│   ├── env.py             # Alembic environment configuration ✅
+│   ├── alembic.ini        # Alembic configuration ✅
+│   └── versions/          # Migration scripts ✅
+├── docs/                  # Documentation ✅
+├── pyproject.toml         # Project configuration ✅
+├── pytest.ini             # Pytest configuration ✅
+└── alembic.ini            # Alembic root configuration ✅
 ```
 
-### Development Stages
-1. **Stage 1**: Initial project setup (environment, dependencies, folder structure)
-2. **Stage 2**: Client Form Register implementation
-3. **Stage 3**: Authentication system and profile control
-4. **Stage 4**: Restaurant Shopping List implementation
-5. **Stage 5**: Stripe integration for subscription management
-6. **Stage 6**: Inventory control and shopping list integration
-7. **Stage 7**: POS development and tax receipt issuance
-8. **Stage 8**: Dashboard with KPIs development
-9. **Stage 9**: Reports section creation
-10. **Stage 10**: Testing and final adjustments
+### Development Stages (Current Status)
+1. **Stage 1**: ✅ Complete (Initial project setup)
+2. **Stage 2**: ✅ Complete (Client Form Register implementation)
+3. **Stage 3**: 🔄 In Progress (Authentication system and profile control)
+4. **Stage 4**: ⏳ Planned (Restaurant Shopping List implementation)
+5. **Stage 5**: ⏳ Planned (Stripe integration for subscription management)
+6. **Stage 6**: ⏳ Planned (Inventory control and shopping list integration)
+7. **Stage 7**: ⏳ Planned (POS development and tax receipt issuance)
+8. **Stage 8**: ⏳ Planned (Dashboard with KPIs development)
+9. **Stage 9**: ⏳ Planned (Reports section creation)
+10. **Stage 10**: ⏳ Planned (Testing and final adjustments)
 
-### Build and Run Commands
-- **Development Server**: `uvicorn main:app --reload --host 0.0.0.0 --port 8001`
-- **Database Migrations**: `alembic upgrade head`
-- **Testing**: `pytest`
+### Build and Run Commands (Verified Working)
+- **Development Server**: `uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8001`
+- **Database Migrations**: `uv run alembic upgrade head`
+- **Testing**: `uv run pytest`
 - **Package Installation**: `uv sync`
+- **Migration Management**: `uv run alembic revision --autogenerate -m "description"`
+- **Database Reset**: `uv run alembic downgrade base && uv run alembic upgrade head`
 
 ## Constraints and Considerations
 

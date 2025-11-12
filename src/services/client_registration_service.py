@@ -90,12 +90,12 @@ class ClientRegistrationService:
         # Check for existing CNPJ
         existing = await self.cnpj_service.get_by_field(db, "cnpj", clean_cnpj)
         if existing:
-            raise ValueError("CNPJ already registered")
+            raise ValueError("CNPJ já cadastrado")
         
         # Check for existing email
         existing_email = await self.cnpj_service.get_by_field(db, "email", registration_data.email)
         if existing_email:
-            raise ValueError("Email already registered")
+            raise ValueError("Email já cadastrado")
         
         # Create address
         address_data = {
@@ -157,12 +157,12 @@ class ClientRegistrationService:
         # Check for existing CPF
         existing = await self.cpf_service.get_by_field(db, "cpf", clean_cpf)
         if existing:
-            raise ValueError("CPF already registered")
+            raise ValueError("CPF já cadastrado")
         
         # Check for existing email
         existing_email = await self.cpf_service.get_by_field(db, "email", registration_data.email)
         if existing_email:
-            raise ValueError("Email already registered")
+            raise ValueError("Email já cadastrado")
         
         # Create address
         address_data = {
@@ -226,14 +226,14 @@ class ClientRegistrationService:
                 existing = await self.cnpj_service.get_by_field(db, "cnpj", clean_doc)
                 return DocumentValidationResponse(
                     valid=not existing,
-                    message="CNPJ already registered" if existing else "CNPJ available"
+                    message="CNPJ já cadastrado" if existing else "CNPJ available"
                 )
             elif document_type == "CPF":
                 clean_doc = ValidationUtils.format_cpf(document)
                 existing = await self.cpf_service.get_by_field(db, "cpf", clean_doc)
                 return DocumentValidationResponse(
                     valid=not existing,
-                    message="CPF already registered" if existing else "CPF available"
+                    message="CPF já cadastrado" if existing else "CPF available"
                 )
             elif document_type == "EMAIL":
                 # Check email uniqueness in both CNPJ and CPF registrations
@@ -242,7 +242,7 @@ class ClientRegistrationService:
                 existing = existing_cnpj or existing_cpf
                 return DocumentValidationResponse(
                     valid=not existing,
-                    message="Email already registered" if existing else "Email available"
+                    message="Email já cadastrado" if existing else "Email available"
                 )
             else:
                 return DocumentValidationResponse(

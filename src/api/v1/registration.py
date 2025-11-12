@@ -84,6 +84,11 @@ async def validate_cnpj_step1(
         if not validation_result.valid:
             return {"success": False, "error": "CNPJ já registrado"}
         
+        # Validate email uniqueness
+        email_validation = await service.validate_document_uniqueness(db, step1_data.email.strip(), "EMAIL")
+        if not email_validation.valid:
+            return {"success": False, "error": "Email já registrado"}
+        
         # Store step 1 data
         await service.update_session_data(db, session_id, 1, step1_data.dict())
         
@@ -165,12 +170,17 @@ async def validate_cpf_step1(
         if not validation_result.valid:
             return {"success": False, "error": "CPF já registrado"}
         
+        # Validate email uniqueness
+        email_validation = await service.validate_document_uniqueness(db, step1_data.email.strip(), "EMAIL")
+        if not email_validation.valid:
+            return {"success": False, "error": "Email já registrado"}
+        
         # Store step 1 data
         await service.update_session_data(db, session_id, 1, step1_data.model_dump())
         
         return {
-            "success": True, 
-            "message": "Step 1 validation successful", 
+            "success": True,
+            "message": "Step 1 validation successful",
             "next_step": 2,
             "data": step1_data.model_dump()
         }

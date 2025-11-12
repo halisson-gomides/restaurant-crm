@@ -1034,7 +1034,7 @@ class ClientRegistrationService:
         # Check for existing CNPJ
         existing = await self.cnpj_service.get_by_field(db, "cnpj", registration_data.cnpj)
         if existing:
-            raise ValueError("CNPJ already registered")
+            raise ValueError("CNPJ já cadastrado")
         
         # Create address
         address_data = {
@@ -1065,7 +1065,7 @@ class ClientRegistrationService:
         # Check for existing CPF
         existing = await self.cpf_service.get_by_field(db, "cpf", registration_data.cpf)
         if existing:
-            raise ValueError("CPF already registered")
+            raise ValueError("CPF já cadastrado")
         
         # Create address
         address_data = {
@@ -1094,13 +1094,13 @@ class ClientRegistrationService:
             existing = await self.cnpj_service.get_by_field(db, "cnpj", document)
             return {
                 "valid": not existing,
-                "message": "CNPJ already registered" if existing else "CNPJ available"
+                "message": "CNPJ já cadastrado" if existing else "CNPJ available"
             }
         elif document_type == "CPF":
             existing = await self.cpf_service.get_by_field(db, "cpf", document)
             return {
                 "valid": not existing,
-                "message": "CPF already registered" if existing else "CPF available"
+                "message": "CPF já cadastrado" if existing else "CPF available"
             }
         return {"valid": False, "message": "Invalid document type"}
 
@@ -1887,13 +1887,13 @@ class AuthService:
         result = await db.execute(select(User).where(User.username == user_data.username))
         existing_user = result.scalar_one_or_none()
         if existing_user:
-            raise ValueError("Username already registered")
+            raise ValueError("Username já cadastrado")
         
         # Check email uniqueness
         result = await db.execute(select(User).where(User.email == user_data.email))
         existing_email = result.scalar_one_or_none()
         if existing_email:
-            raise ValueError("Email already registered")
+            raise ValueError("Email já cadastrado")
         
         # Create user
         hashed_password = get_password_hash(user_data.password)

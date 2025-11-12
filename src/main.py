@@ -1,6 +1,8 @@
 """Main FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +16,49 @@ from .api.v1.registration import router as registration_router
 from .utils.templates import company_context
 from .utils.helpers import remove_accents
 from pathlib import Path
+
+
+def format_brazilian_datetime(dt) -> str:
+    """
+    Format datetime to Brazilian Portuguese format with timezone.
+    
+    Args:
+        dt: Datetime object or SQLAlchemy column to format
+        
+    Returns:
+        Formatted date string in pt-BR format
+    """
+    # Handle SQLAlchemy column objects
+    if hasattr(dt, 'expression'):
+        # If it's a SQLAlchemy column, use current time
+        dt = datetime.now(timezone.utc)
+    elif not isinstance(dt, datetime):
+        # If it's not a datetime, use current time
+        dt = datetime.now(timezone.utc)
+    
+    # Brazilian timezone (America/Sao_Paulo - UTC-3)
+    brazil_tz = ZoneInfo('America/Sao_Paulo')
+    
+    # Convert to Brazilian timezone if naive datetime
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo('UTC')).astimezone(brazil_tz)
+    else:
+        dt = dt.astimezone(brazil_tz)
+    
+    # Format as "dd de MMMM de yyyy às HH:mm"
+    months = {
+        1: "janeiro", 2: "fevereiro", 3: "março", 4: "abril",
+        5: "maio", 6: "junho", 7: "julho", 8: "agosto",
+        9: "setembro", 10: "outubro", 11: "novembro", 12: "dezembro"
+    }
+    
+    day = dt.day
+    month = months[dt.month]
+    year = dt.year
+    hour = dt.hour
+    minute = dt.minute
+    
+    return f"{day} de {month} de {year} às {hour:02d}:{minute:02d}"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -108,8 +153,8 @@ async def cpf_registration_page(request: Request, session_id: str):
 
 @app.get("/registration/success/{registration_type}/{registration_id}", tags=["Pages"])
 async def registration_success(
-    request: Request, 
-    registration_type: str, 
+    request: Request,
+    registration_type: str,
     registration_id: str,
     db: AsyncSession = Depends(get_database)
 ):
@@ -118,6 +163,9 @@ async def registration_success(
     
     # Get registration data for display
     service = ClientRegistrationService()
+    registration = None
+    created_at = datetime.now(timezone.utc)
+    
     if registration_type == "CNPJ":
         # Get CNPJ registration details
         registration = await service.cnpj_service.get_by_id(db, registration_id)
@@ -126,6 +174,8 @@ async def registration_success(
             "cnpj": registration.cnpj if registration else None,
             "email": registration.email if registration else None,
         }
+        if registration:
+            created_at = registration.created_at
     else:
         # Get CPF registration details
         registration = await service.cpf_service.get_by_id(db, registration_id)
@@ -134,13 +184,18 @@ async def registration_success(
             "cpf": registration.cpf if registration else None,
             "email": registration.email if registration else None,
         }
+        if registration:
+            created_at = registration.created_at
+    
+    # Format the created_at date in Brazilian Portuguese
+    formatted_date = format_brazilian_datetime(created_at)
     
     return templates.TemplateResponse("registration/success.html", {
         "request": request,
         "registration_type": registration_type,
         "registration_id": registration_id,
         "registration_data": registration_data,
-        "created_at": "Hoje",  # You might want to format this properly
+        "created_at": formatted_date,
         **company_context(request)
     })
 
