@@ -230,7 +230,7 @@
         });
 
         $.ajax({
-            url: `/auth/registrations?${queryParams}`,
+            url: `/auth/registrations?${queryParams.toString()}`,
             method: 'GET',
             headers: {
                 'Authorization': 'Bearer ' + localStorage.getItem('admin_token')
@@ -376,17 +376,17 @@
     // Export data
     function exportData(format) {
         const filters = {
+            format: format,
             registration_type: $('#registration-type-filter').val(),
             date_from: $('#date-from-filter').val(),
             date_to: $('#date-to-filter').val(),
-            search: $('#search-filter').val().trim(),
-            format: format
+            search: $('#search-filter').val().trim()            
         };
 
         const queryParams = new URLSearchParams(filters);
 
         // Create download link
-        const downloadUrl = `/auth/registrations/export?${queryParams}`;
+        const downloadUrl = `/auth/registrations/export?${queryParams.toString()}`;
         const link = document.createElement('a');
         link.href = downloadUrl;
         link.download = `registrations.${format}`;
