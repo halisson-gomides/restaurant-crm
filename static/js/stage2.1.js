@@ -336,25 +336,34 @@
     // Set up filters
     function setupFilters() {
         $('#apply-filters').on('click', function() {
-            const filters = {
-                registration_type: $('#registration-type-filter').val(),
-                date_from: $('#date-from-filter').val(),
-                date_to: $('#date-to-filter').val(),
-                search: $('#search-filter').val().trim()
-            };
-
-            loadRegistrations(1, filters);
+            applyFilters();
         });
 
         $('#clear-filters').on('click', function() {
-            $('#registration-type-filter').val('');
-            $('#date-from-filter').val('');
-            $('#date-to-filter').val('');
-            $('#search-filter').val('');
-
-            loadRegistrations(1, {});
+            clearFilters();
         });
     }
+
+    // Global filter functions
+    window.applyFilters = function() {
+        const filters = {
+            registration_type: $('#registration-type-filter').val(),
+            date_from: $('#date-from-filter').val(),
+            date_to: $('#date-to-filter').val(),
+            search: $('#search-filter').val().trim()
+        };
+
+        loadRegistrations(1, filters);
+    };
+
+    window.clearFilters = function() {
+        $('#registration-type-filter').val('');
+        $('#date-from-filter').val('');
+        $('#date-to-filter').val('');
+        $('#search-filter').val('');
+
+        loadRegistrations(1, {});
+    };
 
     // Set up export actions
     function setupExportActions() {

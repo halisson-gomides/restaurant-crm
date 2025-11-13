@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, literal
 from typing import Optional
 
 from ..database import get_database
@@ -248,7 +248,7 @@ async def get_registrations(
         CNPJRegistration.email,
         CNPJRegistration.celular.label("phone"),
         CNPJRegistration.created_at,
-        func.literal("CNPJ").label("type")
+        literal("CNPJ").label("type")
     )
 
     cpf_query = select(
@@ -257,7 +257,7 @@ async def get_registrations(
         CPFRegistration.email,
         CPFRegistration.celular.label("phone"),
         CPFRegistration.created_at,
-        func.literal("CPF").label("type")
+        literal("CPF").label("type")
     )
 
     # Apply filters
@@ -297,11 +297,27 @@ async def get_registrations(
 
     if cnpj_query is not None:
         cnpj_result = await db.execute(cnpj_query.offset(offset).limit(limit))
-        all_registrations.extend([dict(row) for row in cnpj_result])
+        for row in cnpj_result:
+            all_registrations.append({
+                "id": row.id,
+                "name": row.name,
+                "email": row.email,
+                "phone": row.phone,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "type": row.type
+            })
 
     if cpf_query is not None:
         cpf_result = await db.execute(cpf_query.offset(offset).limit(limit))
-        all_registrations.extend([dict(row) for row in cpf_result])
+        for row in cpf_result:
+            all_registrations.append({
+                "id": row.id,
+                "name": row.name,
+                "email": row.email,
+                "phone": row.phone,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "type": row.type
+            })
 
     # Sort combined results by creation date
     all_registrations.sort(key=lambda x: x["created_at"], reverse=True)
