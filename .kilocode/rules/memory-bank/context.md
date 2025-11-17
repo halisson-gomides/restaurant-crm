@@ -20,7 +20,15 @@
 - ✅ Added JWT-based authentication with role-based access control
 - ✅ Built admin user creation script and login interface
 
-## Recent Changes (2025-11-12)
+## Recent Changes (2025-11-17)
+- **FIXED reCAPTCHA Validation Issues**: Resolved form submission bypass when reCAPTCHA not completed
+- Updated `static/js/stage2.js` with proper reCAPTCHA initialization for directly loaded templates
+- Added `initializeStep2FormsIfPresent()` function to handle step 2 forms on page load
+- Fixed duplicate reCAPTCHA initialization code and JavaScript errors
+- Ensured form validation prevents submission without reCAPTCHA completion
+- Updated documentation to reflect reCAPTCHA fixes implementation
+
+## Previous Changes (2025-11-12)
 - Successfully rebuilt Alembic migrations (93160675bbfa_initial_database_schema.py)
 - Removed old migration files and created fresh initial migration
 - Fixed alembic env.py for proper async database operations
