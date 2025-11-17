@@ -29,12 +29,16 @@ class Settings(BaseSettings):
 
     # Application Configuration
     app_name: str = Field(
-        default="Restaurant CRM",
+        default="CRM para Restaurantes",
         description="CRM para Restaurantes"
     )
     company_name: str = Field(
         default="CompraJá!",
         description="Nome da empresa cliente"
+    )
+    company_logo: str = Field(
+        default="/static/img/logoCompraJa_page-0001-nobg.png",
+        description="Caminho completo para o logo da empresa"
     )
     debug: bool = Field(
         default=True,
@@ -59,12 +63,12 @@ class Settings(BaseSettings):
     
     # reCAPTCHA Configuration
     recaptcha_site_key: str = Field(
-        default="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
-        description="Google reCAPTCHA site key (test key for development)"
+        default="6LdTmQ8sAAAAAH22KF-MYjHRzNtGEqgwaSr5swtc",
+        description="Google reCAPTCHA site key"
     )
     recaptcha_secret_key: str = Field(
-        default="6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe",
-        description="Google reCAPTCHA secret key (test key for development)"
+        default="6LdTmQ8sAAAAAN0M5egF61hwNE1LY2FUB4tQ2Rqi",
+        description="Google reCAPTCHA secret key"
     )
 
     class Config:

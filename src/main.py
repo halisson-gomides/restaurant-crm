@@ -109,6 +109,12 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Favicon route
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    """Serve favicon.ico from static directory."""
+    return FileResponse("static/img/favicon.ico")
+
 
 # Initialize templates
 templates = Jinja2Templates(directory="templates")
@@ -295,12 +301,6 @@ async def health_check():
         "environment": settings.environment,
         "version": "0.1.0",
     }
-
-# HTMX specific endpoints
-@app.get("/health/htmx", tags=["Health"])
-async def htmx_health():
-    """HTMX health check endpoint."""
-    return {"status": "ok", "htmx": True}
 
 # API Documentation endpoint
 @app.get("/docs", tags=["Documentation"])

@@ -212,7 +212,7 @@
 
 .form-checkbox-label {
     margin-left: 0.1rem;
-    font-size: 0.75rem;
+    /* font-size: 0.875rem; */
     font-weight: 500;
     color: #414957;
 }

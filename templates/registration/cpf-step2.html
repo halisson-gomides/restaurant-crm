@@ -56,7 +56,6 @@
                 <form>
                     
                     <input type="hidden" name="session_id" value="{{ session_id }}">
-                    <input type="hidden" name="recaptcha_token" id="recaptcha-token" value="test-token">
                     
                     <div class="form-space-y">
                         <!-- Birth Date -->
@@ -233,50 +232,5 @@
 // Set reCAPTCHA site key from backend
 window.recaptchaSiteKey = '{{ recaptcha_site_key }}';
 
-// Initialize step 2 form functionality
-$(document).ready(function() {
-    // CEP formatting and validation
-    // $(document).on('input', '#cep', function() {
-    //     let cep = $(this).val().replace(/\D/g, '');
-    //     if (cep.length <= 8) {
-    //         $(this).val(cep.replace(/(\d{5})(\d{3})/, '$1-$2'));
-    //     }
-    // });
-
-    // CEP auto-fill on blur
-    // $(document).on('blur', '#cep', function() {
-    //     const cep = $(this).val().replace(/\D/g, '');
-    //     if (cep.length === 8) {
-    //         // Show loading
-    //         $('#cep-validation').html('<div class="text-blue-600 text-sm mt-1">Buscando endereço...</div>');
-            
-    //         $.ajax({
-    //             url: `/registration/address/cep/${cep}`,
-    //             method: 'GET',
-    //             dataType: 'json',
-    //             timeout: 10000,
-    //             success: function(data) {
-    //                 if (data.success) {
-    //                     // Auto-fill address fields
-    //                     $('#endereco').val(data.endereco || '').trigger('change');
-    //                     $('#bairro').val(data.bairro || '').trigger('change');
-    //                     $('#cidade').val(data.cidade || '').trigger('change');
-    //                     $('#estado').val(data.estado || '').trigger('change');
-                        
-    //                     $('#cep-validation').html('<div class="text-green-600 text-sm mt-1">✓ Endereço encontrado!</div>');
-                        
-    //                     // Focus on next field
-    //                     $('#endereco').focus();
-    //                 } else {
-    //                     $('#cep-validation').html(`<div class="text-red-600 text-sm mt-1">✗ ${data.error}</div>`);
-    //                 }
-    //             },
-    //             error: function() {
-    //                 $('#cep-validation').html('<div class="text-red-600 text-sm mt-1">✗ Erro ao buscar CEP</div>');
-    //             }
-    //         });
-    //     }
-    // });
-});
 </script>
 {% endblock %}
