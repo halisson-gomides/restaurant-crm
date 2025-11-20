@@ -95,7 +95,7 @@ class Organization(BaseModel):
     email = Column(String(255), unique=True, index=True)
     
     # Registration relation
-    cnpj_registration_id = Column(String, ForeignKey("cnpj_registrations.id"))
+    cnpj_registration_id = Column(String, ForeignKey("cnpj_registrations.id", ondelete="SET NULL"), nullable=True)
 
 
 class User(BaseModel):

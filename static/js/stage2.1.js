@@ -249,7 +249,7 @@
     // Render registrations table
     function renderRegistrations(registrations) {
         if (!registrations || registrations.length === 0) {
-            $('#registrations-tbody').html('<tr><td colspan="6" class="text-center py-8 text-gray-500">No registrations found</td></tr>');
+            $('#registrations-tbody').html('<tr><td colspan="6" class="text-center py-8 text-gray-500">Nenhum registro encontrado</td></tr>');
             return;
         }
 

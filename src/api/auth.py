@@ -849,7 +849,7 @@ async def delete_registration(
         )
         registration = result.scalar_one_or_none()
         if registration:
-            # Find and delete all organizations that reference this registration
+            # Find all organizations that reference this registration
             org_result = await db.execute(
                 select(Organization).where(Organization.cnpj_registration_id == registration_id)
             )
@@ -885,6 +885,25 @@ async def delete_registration(
         )
         registration = result.scalar_one_or_none()
         if registration:
+            # Find and delete the associated user
+            clean_cpf = registration.cpf.replace('.', '').replace('-', '')
+            user_result = await db.execute(
+                select(User).where(User.username == clean_cpf)
+            )
+            associated_user = user_result.scalar_one_or_none()
+            if associated_user:
+                # Delete user_roles first (no cascade)
+                user_role_result = await db.execute(
+                    select(UserRole).where(UserRole.user_id == associated_user.id)
+                )
+                user_roles = user_role_result.scalars().all()
+                for user_role in user_roles:
+                    await db.delete(user_role)
+
+                # Delete the user
+                await db.delete(associated_user)
+
+            # Now delete the registration
             await db.delete(registration)
             await db.commit()
     else:
