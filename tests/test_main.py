@@ -12,17 +12,15 @@ def test_root_endpoint():
     client = TestClient(app)
     response = client.get("/")
     assert response.status_code == 200
-    data = response.json()
-    assert "message" in data
-    assert "version" in data
-    assert "environment" in data
+    # Should return HTML
+    assert "text/html" in response.headers["content-type"]
 
 
 @pytest.mark.unit
 def test_health_check_endpoint():
     """Test health check endpoint."""
     client = TestClient(app)
-    response = client.get("/health")
+    response = client.get("/api/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"

@@ -1,0 +1,125 @@
+<form id="edit-registration-form" onsubmit="submitEditForm(event, '{{ registration.id }}', 'CPF')">
+    <div class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Personal Info -->
+            <div class="col-span-2">
+                <h4 class="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Dados Pessoais</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="nome_completo" class="form-label">Nome Completo</label>
+                        <input type="text" id="nome_completo" name="nome_completo" class="form-input" value="{{ registration.nome_completo }}" required>
+                    </div>
+                    <div>
+                        <label class="form-label">CPF (Não editável)</label>
+                        <input type="text" class="form-input bg-gray-100" value="{{ registration.cpf }}" disabled>
+                    </div>
+                    <div>
+                        <label for="email" class="form-label">E-mail</label>
+                        <input type="email" id="email" name="email" class="form-input" value="{{ registration.email }}" required>
+                    </div>
+                    <div>
+                        <label for="celular" class="form-label">Celular</label>
+                        <input type="text" id="celular" name="celular" class="form-input" value="{{ registration.celular }}" required oninput="this.value = formatPhone(this.value)">
+                    </div>
+                    <div>
+                        <label for="genero" class="form-label">Gênero</label>
+                        <select id="genero" name="genero" class="form-select" required>
+                            {% set genders = ["Feminino", "masculino", "outros", "não quero me identificar"] %}
+                            {% for gender in genders %}
+                            <option value="{{ gender }}" {% if registration.genero == gender %}selected{% endif %}>{{ gender }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="data_nascimento" class="form-label">Data de Nascimento</label>
+                        <input type="date" id="data_nascimento" name="data_nascimento" class="form-input" value="{{ registration.data_nascimento.isoformat() }}" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Info -->
+            <div class="col-span-2">
+                <h4 class="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Perfil de Compra</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="perfil_compra" class="form-label">Perfil</label>
+                        <select id="perfil_compra" name="perfil_compra" class="form-select" required onchange="toggleBusinessName(this.value)">
+                            <option value="casa" {% if registration.perfil_compra == 'casa' %}selected{% endif %}>Para minha casa</option>
+                            <option value="negocio" {% if registration.perfil_compra == 'negocio' %}selected{% endif %}>Para meu negócio</option>
+                            <option value="ambos" {% if registration.perfil_compra == 'ambos' %}selected{% endif %}>Para ambos</option>
+                        </select>
+                    </div>
+                    <div id="business-name-container" class="{% if registration.perfil_compra == 'casa' %}hidden{% endif %}">
+                        <label for="qual_negocio_cpf" class="form-label">Nome do Negócio</label>
+                        <input type="text" id="qual_negocio_cpf" name="qual_negocio_cpf" class="form-input" value="{{ registration.qual_negocio_cpf or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address Info -->
+            <div class="col-span-2">
+                <h4 class="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Endereço</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="cep" class="form-label">CEP</label>
+                        <input type="text" id="cep" name="cep" class="form-input" value="{{ registration.cep }}" required maxlength="9">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="endereco" class="form-label">Endereço</label>
+                        <input type="text" id="endereco" name="endereco" class="form-input" value="{{ registration.endereco }}" required>
+                    </div>
+                    <div>
+                        <label for="bairro" class="form-label">Bairro</label>
+                        <input type="text" id="bairro" name="bairro" class="form-input" value="{{ registration.bairro }}" required>
+                    </div>
+                    <div>
+                        <label for="cidade" class="form-label">Cidade</label>
+                        <input type="text" id="cidade" name="cidade" class="form-input" value="{{ registration.cidade }}" required>
+                    </div>
+                    <div>
+                        <label for="estado" class="form-label">Estado</label>
+                        <select id="estado" name="estado" class="form-select" required>
+                            {% set states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"] %}
+                            {% for state in states %}
+                            <option value="{{ state }}" {% if registration.estado == state %}selected{% endif %}>{{ state }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="col-span-2">
+                <h4 class="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Configurações</h4>
+                <div class="flex items-center">
+                    <input type="checkbox" id="marketing_opt_in" name="marketing_opt_in" class="form-checkbox h-5 w-5 text-indigo-600" {% if registration.marketing_opt_in %}checked{% endif %}>
+                    <label for="marketing_opt_in" class="ml-2 block text-sm text-gray-900">
+                        Aceita receber marketing
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4 border-t">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('view-modal')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save mr-2"></i>Salvar Alterações
+            </button>
+        </div>
+    </div>
+</form>
+
+<script>
+function toggleBusinessName(value) {
+    const container = document.getElementById('business-name-container');
+    const input = document.getElementById('qual_negocio_cpf');
+    if (value === 'casa') {
+        container.classList.add('hidden');
+        input.required = false;
+        input.value = '';
+    } else {
+        container.classList.remove('hidden');
+        input.required = true;
+    }
+}
+</script>

@@ -6,7 +6,6 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +15,7 @@ from .api.v1.registration import router as registration_router
 from .api.auth import router as auth_router
 from .api.deps import get_current_user
 from .models.client_registration import User
-from .utils.templates import company_context
+from .utils.templates import company_context, templates
 from .utils.helpers import remove_accents
 from .utils.security import verify_token
 from sqlalchemy import select
@@ -115,12 +114,6 @@ async def favicon():
     """Serve favicon.ico from static directory."""
     return FileResponse("static/img/favicon.ico")
 
-
-# Initialize templates
-templates = Jinja2Templates(directory="templates")
-
-# Add custom Jinja2 filters
-templates.env.filters['remove_accents'] = remove_accents
 
 # Include API routers
 app.include_router(registration_router)

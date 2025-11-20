@@ -12,10 +12,12 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
 from ..database import get_database
-from ..models.client_registration import User, CNPJRegistration, CPFRegistration, Organization
+from ..models.client_registration import User, CNPJRegistration, CPFRegistration, Organization, UserRole
 from ..schemas.auth import UserLogin, Token
+from ..schemas.client_registration import CNPJRegistrationUpdate, CPFRegistrationUpdate, ValidationUtils
 from ..utils.security import create_access_token, verify_token
 from ..api.deps import get_current_user
+from ..utils.templates import templates
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
@@ -668,6 +670,163 @@ async def get_registration_detail(
     return registration
 
 
+@router.get("/registrations/{registration_id}/html")
+async def get_registration_html(
+    request: Request,
+    registration_id: str,
+    registration_type: str,
+    mode: str = "view",  # view or edit
+    db: AsyncSession = Depends(get_database),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get registration details as HTML fragment."""
+    # Verify token and admin role
+    payload = verify_token(credentials.credentials)
+    if not payload or payload.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    if registration_type.upper() == "CNPJ":
+        result = await db.execute(
+            select(CNPJRegistration).where(CNPJRegistration.id == registration_id)
+        )
+        registration = result.scalar_one_or_none()
+        template_name = f"admin/{mode}_cnpj.html"
+    elif registration_type.upper() == "CPF":
+        result = await db.execute(
+            select(CPFRegistration).where(CPFRegistration.id == registration_id)
+        )
+        registration = result.scalar_one_or_none()
+        template_name = f"admin/{mode}_cpf.html"
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid registration type"
+        )
+
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found"
+        )
+
+    return templates.TemplateResponse(
+        template_name,
+        {"request": request, "registration": registration}
+    )
+
+
+@router.put("/registrations/{registration_id}")
+async def update_registration(
+    registration_id: str,
+    registration_type: str,
+    request: Request,
+    db: AsyncSession = Depends(get_database),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Update a registration (admin only)."""
+    # Verify token and admin role
+    payload = verify_token(credentials.credentials)
+    if not payload or payload.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    data = await request.json()
+
+    if registration_type.upper() == "CNPJ":
+        # Validate data
+        try:
+            update_data = CNPJRegistrationUpdate(**data)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        result = await db.execute(
+            select(CNPJRegistration).where(CNPJRegistration.id == registration_id)
+        )
+        registration = result.scalar_one_or_none()
+        
+        if not registration:
+            raise HTTPException(status_code=404, detail="Registration not found")
+
+        # Update fields
+        update_dict = update_data.model_dump(exclude_unset=True)
+        
+        # Format fields if present
+        if "cep" in update_dict:
+            update_dict["cep"] = ValidationUtils.format_cep(update_dict["cep"])
+        
+        for key, value in update_dict.items():
+            setattr(registration, key, value)
+            
+        # Also update Organization and User if needed
+        if "razao_social" in update_dict or "email" in update_dict:
+            org_result = await db.execute(
+                select(Organization).where(Organization.cnpj_registration_id == registration.id)
+            )
+            org = org_result.scalar_one_or_none()
+            if org:
+                if "razao_social" in update_dict:
+                    org.name = update_dict["razao_social"]
+                if "email" in update_dict:
+                    org.email = update_dict["email"]
+        
+        if "email" in update_dict:
+            user_result = await db.execute(
+                select(User).where(User.username == registration.cnpj.replace('.', '').replace('/', '').replace('-', ''))
+            )
+            user = user_result.scalar_one_or_none()
+            if user:
+                user.email = update_dict["email"]
+
+    elif registration_type.upper() == "CPF":
+        # Validate data
+        try:
+            update_data = CPFRegistrationUpdate(**data)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        result = await db.execute(
+            select(CPFRegistration).where(CPFRegistration.id == registration_id)
+        )
+        registration = result.scalar_one_or_none()
+        
+        if not registration:
+            raise HTTPException(status_code=404, detail="Registration not found")
+
+        # Update fields
+        update_dict = update_data.model_dump(exclude_unset=True)
+        
+        # Format fields if present
+        if "cep" in update_dict:
+            update_dict["cep"] = ValidationUtils.format_cep(update_dict["cep"])
+            
+        for key, value in update_dict.items():
+            setattr(registration, key, value)
+            
+        # Also update User if needed
+        if "email" in update_dict:
+            user_result = await db.execute(
+                select(User).where(User.username == registration.cpf.replace('.', '').replace('-', ''))
+            )
+            user = user_result.scalar_one_or_none()
+            if user:
+                user.email = update_dict["email"]
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid registration type"
+        )
+
+    await db.commit()
+    await db.refresh(registration)
+    return registration
+
+
 @router.delete("/registrations/{registration_id}")
 async def delete_registration(
     registration_id: str,
@@ -690,6 +849,34 @@ async def delete_registration(
         )
         registration = result.scalar_one_or_none()
         if registration:
+            # Find and delete all organizations that reference this registration
+            org_result = await db.execute(
+                select(Organization).where(Organization.cnpj_registration_id == registration_id)
+            )
+            associated_orgs = org_result.scalars().all()
+
+            # Delete all associated organizations first
+            for org in associated_orgs:
+                # Delete user_roles first (no cascade)
+                user_role_result = await db.execute(
+                    select(UserRole).where(UserRole.organization_id == org.id)
+                )
+                user_roles = user_role_result.scalars().all()
+                for user_role in user_roles:
+                    await db.delete(user_role)
+
+                # Delete users (cascade from organization will handle this, but let's be explicit)
+                user_result = await db.execute(
+                    select(User).where(User.organization_id == org.id)
+                )
+                users = user_result.scalars().all()
+                for user in users:
+                    await db.delete(user)
+
+                # Now delete the organization
+                await db.delete(org)
+
+            # Now delete the registration
             await db.delete(registration)
             await db.commit()
     elif registration_type.upper() == "CPF":

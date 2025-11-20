@@ -1,0 +1,89 @@
+<div class="space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Company Info -->
+        <div class="col-span-2">
+            <h4 class="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Dados da Empresa</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Razão Social</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.razao_social }}</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">CNPJ</label>
+                    <div class="mt-1 text-sm text-gray-900 font-mono">{{ registration.cnpj }}</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Tipo de Negócio</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.qual_seu_negocio }}</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">E-mail</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.email }}</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Celular</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.celular }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Info -->
+        <div class="col-span-2">
+            <h4 class="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Dados do Responsável</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Nome</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.seu_nome }}</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Função</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.sua_funcao }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Address Info -->
+        <div class="col-span-2">
+            <h4 class="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Endereço</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">CEP</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.cep }}</div>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-500">Endereço</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.endereco }}</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Bairro</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.bairro }}</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Cidade/UF</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.cidade }} - {{ registration.estado }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="col-span-2">
+            <h4 class="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Informações do Sistema</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Data de Cadastro</label>
+                    <div class="mt-1 text-sm text-gray-900">{{ registration.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Marketing Opt-in</label>
+                    <div class="mt-1 text-sm text-gray-900">
+                        {% if registration.marketing_opt_in %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Sim</span>
+                        {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Não</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

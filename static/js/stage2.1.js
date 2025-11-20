@@ -397,22 +397,160 @@
 
     // View registration details
     window.viewRegistration = function(id, type) {
-        // Implementation for viewing registration details
-        alert(`View registration ${id} (${type}) - Feature coming soon!`);
+        const modal = $('#view-modal');
+        const content = $('#view-modal-content');
+        const title = modal.find('.modal-title');
+        
+        title.text('Detalhes do Cadastro');
+        content.html('<div class="text-center py-8"><div class="loading-spinner mx-auto"></div></div>');
+        modal.addClass('show');
+        
+        $.ajax({
+            url: `/auth/registrations/${id}/html`,
+            method: 'GET',
+            data: {
+                registration_type: type,
+                mode: 'view'
+            },
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('admin_token')
+            },
+            success: function(html) {
+                content.html(html);
+            },
+            error: function(xhr) {
+                console.error('Failed to load registration details:', xhr);
+                content.html('<div class="text-center py-8 text-red-600">Erro ao carregar detalhes do cadastro</div>');
+            }
+        });
     };
 
     // Edit registration
     window.editRegistration = function(id, type) {
-        // Implementation for editing registration
-        alert(`Edit registration ${id} (${type}) - Feature coming soon!`);
+        const modal = $('#view-modal');
+        const content = $('#view-modal-content');
+        const title = modal.find('.modal-title');
+        
+        title.text('Editar Cadastro');
+        content.html('<div class="text-center py-8"><div class="loading-spinner mx-auto"></div></div>');
+        modal.addClass('show');
+        
+        $.ajax({
+            url: `/auth/registrations/${id}/html`,
+            method: 'GET',
+            data: {
+                registration_type: type,
+                mode: 'edit'
+            },
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('admin_token')
+            },
+            success: function(html) {
+                content.html(html);
+            },
+            error: function(xhr) {
+                console.error('Failed to load registration form:', xhr);
+                content.html('<div class="text-center py-8 text-red-600">Erro ao carregar formulário de edição</div>');
+            }
+        });
     };
+
+    // Submit edit form
+    window.submitEditForm = function(event, id, type) {
+        event.preventDefault();
+        
+        const form = $(event.target);
+        const formData = {};
+        
+        form.serializeArray().forEach(item => {
+            formData[item.name] = item.value;
+        });
+        
+        // Handle checkbox
+        formData.marketing_opt_in = form.find('#marketing_opt_in').is(':checked');
+        
+        // Show loading
+        const submitBtn = form.find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        submitBtn.prop('disabled', true).html('<div class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>');
+        
+        $.ajax({
+            url: `/auth/registrations/${id}?registration_type=${type}`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('admin_token')
+            },
+            success: function(response) {
+                closeModal('view-modal');
+                showSuccessToast('Cadastro atualizado com sucesso!');
+                loadRegistrations(); // Reload table
+            },
+            error: function(xhr) {
+                console.error('Failed to update registration:', xhr);
+                let errorMsg = 'Erro ao atualizar cadastro';
+                if (xhr.responseJSON && xhr.responseJSON.detail) {
+                    errorMsg = xhr.responseJSON.detail;
+                }
+                showErrorToast(errorMsg);
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    };
+
+    // Delete registration variables
+    let deleteId = null;
+    let deleteType = null;
 
     // Delete registration
     window.deleteRegistration = function(id, type) {
-        if (confirm(`Are you sure you want to delete this ${type} registration? This action cannot be undone.`)) {
-            // Implementation for deleting registration
-            alert(`Delete registration ${id} (${type}) - Feature coming soon!`);
-        }
+        deleteId = id;
+        deleteType = type;
+        $('#delete-modal').addClass('show');
+    };
+
+    // Confirm delete
+    window.confirmDelete = function() {
+        if (!deleteId || !deleteType) return;
+        
+        const btn = $('#delete-modal .btn-danger');
+        const originalText = btn.html();
+        btn.prop('disabled', true).html('<div class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>');
+        
+        $.ajax({
+            url: `/auth/registrations/${deleteId}?registration_type=${deleteType}`,
+            method: 'DELETE',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('admin_token')
+            },
+            success: function(response) {
+                closeModal('delete-modal');
+                showSuccessToast('Cadastro excluído com sucesso!');
+                loadRegistrations(); // Reload table
+                
+                // Reset button
+                btn.prop('disabled', false).html(originalText);
+                deleteId = null;
+                deleteType = null;
+            },
+            error: function(xhr) {
+                console.error('Failed to delete registration:', xhr);
+                let errorMsg = 'Erro ao excluir cadastro';
+                if (xhr.responseJSON && xhr.responseJSON.detail) {
+                    errorMsg = xhr.responseJSON.detail;
+                }
+                showErrorToast(errorMsg);
+                
+                // Reset button
+                btn.prop('disabled', false).html(originalText);
+            }
+        });
+    };
+
+    // Close modal
+    window.closeModal = function(modalId) {
+        $(`#${modalId}`).removeClass('show');
     };
 
     // Dashboard dropdown functionality

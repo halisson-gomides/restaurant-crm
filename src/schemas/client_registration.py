@@ -112,6 +112,64 @@ class CNPJRegistrationComplete(CNPJStep1, CNPJStep2):
     pass
 
 
+class CNPJRegistrationUpdate(BaseModel):
+    """CNPJ registration update schema."""
+    qual_seu_negocio: Optional[str] = None
+    razao_social: Optional[str] = None
+    seu_nome: Optional[str] = None
+    sua_funcao: Optional[str] = None
+    email: Optional[EmailStr] = None
+    celular: Optional[str] = None
+    cep: Optional[str] = None
+    endereco: Optional[str] = None
+    bairro: Optional[str] = None
+    cidade: Optional[str] = None
+    estado: Optional[str] = None
+    marketing_opt_in: Optional[bool] = None
+
+    @field_validator('qual_seu_negocio')
+    def validate_business_type(cls, v):
+        if v is None: return v
+        valid_types = [
+            "Academia", "Adega", "Bar", "Bomboniere", "Cantina", "Clube esportivo",
+            "Condomínio", "Confeitaria", "Doceria", "Dogueiro", "Escola",
+            "Food service", "Hotel", "Instituição religiosa", "Lanchonete",
+            "Mercearia", "Mini mercado", "Padaria", "Pastelaria", "Pizzaria",
+            "Restaurante", "Outros"
+        ]
+        if v not in valid_types:
+            raise ValueError(f'Business type must be one of: {", ".join(valid_types)}')
+        return v
+
+    @field_validator('sua_funcao')
+    def validate_role(cls, v):
+        if v is None: return v
+        valid_roles = ["Proprietário", "Gerente", "Estoquista"]
+        if v not in valid_roles:
+            raise ValueError(f'Role must be one of: {", ".join(valid_roles)}')
+        return v
+
+    @field_validator('celular')
+    def validate_celular(cls, v):
+        if v is None: return v
+        phone = re.sub(r'[^0-9]', '', v)
+        if len(phone) not in [10, 11]:
+            raise ValueError('Phone number must have 10 or 11 digits')
+        return ValidationUtils.format_phone(phone)
+
+    @field_validator('estado')
+    def validate_estado(cls, v):
+        if v is None: return v
+        valid_states = [
+            'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
+            'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
+            'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+        ]
+        if v.upper() not in valid_states:
+            raise ValueError(f'State must be one of: {", ".join(valid_states)}')
+        return v.upper()
+
+
 # REMOVED: CNPJRegistrationOut - not used anywhere in the codebase
 
 
@@ -199,6 +257,59 @@ class CPFStep2(BaseModel):
 class CPFRegistrationComplete(CPFStep1, CPFStep2):
     """Complete CPF registration schema."""
     pass
+
+
+class CPFRegistrationUpdate(BaseModel):
+    """CPF registration update schema."""
+    perfil_compra: Optional[str] = None
+    qual_negocio_cpf: Optional[str] = None
+    nome_completo: Optional[str] = None
+    email: Optional[EmailStr] = None
+    genero: Optional[str] = None
+    celular: Optional[str] = None
+    data_nascimento: Optional[date] = None
+    cep: Optional[str] = None
+    endereco: Optional[str] = None
+    bairro: Optional[str] = None
+    cidade: Optional[str] = None
+    estado: Optional[str] = None
+    marketing_opt_in: Optional[bool] = None
+
+    @field_validator('perfil_compra')
+    def validate_perfil_compra(cls, v):
+        if v is None: return v
+        valid_profiles = ["casa", "negocio", "ambos"]
+        if v not in valid_profiles:
+            raise ValueError(f'Purchase profile must be one of: {", ".join(valid_profiles)}')
+        return v
+
+    @field_validator('genero')
+    def validate_genero(cls, v):
+        if v is None: return v
+        valid_genders = ["Feminino", "masculino", "outros", "não quero me identificar"]
+        if v not in valid_genders:
+            raise ValueError(f'Gender must be one of: {", ".join(valid_genders)}')
+        return v
+
+    @field_validator('celular')
+    def validate_celular(cls, v):
+        if v is None: return v
+        phone = re.sub(r'[^0-9]', '', v)
+        if len(phone) not in [10, 11]:
+            raise ValueError('Phone number must have 10 or 11 digits')
+        return ValidationUtils.format_phone(phone)
+
+    @field_validator('estado')
+    def validate_estado(cls, v):
+        if v is None: return v
+        valid_states = [
+            'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
+            'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
+            'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+        ]
+        if v.upper() not in valid_states:
+            raise ValueError(f'State must be one of: {", ".join(valid_states)}')
+        return v.upper()
 
 
 class RegistrationSessionOut(BaseModel):
