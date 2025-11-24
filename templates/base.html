@@ -119,17 +119,18 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div>
                     <div class="flex items-center mb-4">
-                        <i class="fas fa-shopping-cart text-indigo-600 text-lg mr-2"></i>
-                        <span class="text-lg font-bold text-gray-900">{{ company_name }}</span>
+                        <!-- <i class="fas fa-shopping-cart text-indigo-600 text-lg mr-2"></i>
+                        <span class="text-lg font-bold text-gray-900">{{ company_name }}</span> -->
+                        <img class="h-12 mr-2" src="{{ company_logo }}" alt="{{ company_name }}">
                     </div>
-                    <p class="text-sm text-gray-600">
+                    <!-- <p class="text-sm text-gray-600">
                         Sistema completo de gestão para restaurantes e comércios.
-                    </p>
+                    </p> -->
                 </div>
                 <div>
                     <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Links Úteis</h3>
                     <ul class="space-y-2">
-                        <li><a href="#" class="text-sm text-gray-600 hover:text-gray-900">Política de Privacidade</a></li>
+                        <li><a href="/download/politica-de-privacidade" class="text-sm text-gray-600 hover:text-gray-900">Política de Privacidade</a></li>
                         <li><a href="#" class="text-sm text-gray-600 hover:text-gray-900">Termos de Uso</a></li>
                         <li><a href="#" class="text-sm text-gray-600 hover:text-gray-900">Suporte</a></li>
                     </ul>
@@ -145,13 +146,29 @@
                             <i class="fas fa-phone mr-2"></i>
                             (11) 9999-9999
                         </li>
+                        <li class="text-gray-600 my-4 flex space-x-4">
+                            <a href="https://www.instagram.com/seuempresa" class="text-gray-500 hover:text-gray-700">
+                                <i class="fab fa-instagram"></i>
+                            </a>
+                            <a href="https://www.linkedin.com/company/seuempresa" class="text-gray-500 hover:text-gray-700">
+                                <i class="fab fa-linkedin-in"></i>
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </div>
-            <div class="mt-8 pt-8 border-t border-gray-200">
-                <p class="text-sm text-gray-500 text-center">
+            <div class="grid grid-cols-1 sm:grid-cols-3 items-center border-t border-gray-200 pt-6 gap-4">
+                <div class="flex items-center justify-center sm:justify-start space-x-2">
+                    <span class="text-sm text-gray-500">Desenvolvido por:</span>
+                    <a href="https://kingdomsys.com/" target="_blank" class="inline-flex items-center text-gray-400 hover:text-[#214d6c]">
+                        <img src="https://img1.wsimg.com/isteam/ip/3414b9ec-40fe-4bcb-873a-cf0ef3f81fb1/favicon/1b1ee852-c8c4-48da-85a5-da88b271c600.png/:/rs=w:16,h:16,m" class="h-4 w-4" alt="KingdomSys">
+                        <span class="ml-1 text-sm">KingdomSys</span>
+                    </a>
+                </div>
+                <div class="text-sm text-gray-500 text-center">
                     © 2025 {{ company_name }}. Todos os direitos reservados.
-                </p>
+                </div>
+                <div class="hidden sm:block"></div>
             </div>
         </div>
     </footer>
