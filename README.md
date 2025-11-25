@@ -9,9 +9,12 @@ A comprehensive Customer Relationship Management (CRM) system specifically desig
 
 ## 🚀 Features
 
-### Core Functionality
-- **Client Registration**: Corporate customer management with CNPJ/company ID integration
-- **Authentication System**: Role-based access control (administrator, manager, employee, shopper, customer)
+### Core Functionality ✅ **IMPLEMENTED**
+- **Client Registration**: Corporate customer management with CNPJ/company ID integration and CPF individual registration
+- **Admin Management System**: Full admin dashboard with registration management, statistics, and data export capabilities
+- **Authentication System**: JWT-based admin authentication with role-based access control
+
+### Core Functionality 🔄 **IN DEVELOPMENT**
 - **Shopping List Management**: Category-organized shopping lists (proteins, produce, dairy, cleaning products, packaging, groceries)
 - **Subscription Management**: Stripe integration for payment processing and subscription handling
 - **Inventory Control**: Complete inventory management integrated with shopping lists
@@ -20,35 +23,39 @@ A comprehensive Customer Relationship Management (CRM) system specifically desig
 - **Comprehensive Reports**: Billing, tax, and sales analysis by category
 - **Predictive Analytics**: AI-powered sales forecasting and consumption trend analysis
 
-### Technical Features
-- **Multi-location Support**: Centralized data with location-based filtering
-- **Real-time Updates**: Instant synchronization across all system components
-- **Mobile-responsive Interface**: Optimized for mobile shopping list management
+### Technical Features ✅ **IMPLEMENTED**
+- **Multi-location Support**: Database schema designed for multi-location restaurant chains
+- **Real-time Updates**: HTMX-powered dynamic frontend interactions
+- **Mobile-responsive Interface**: Responsive templates optimized for mobile shopping list management
 - **Async Database Operations**: High-performance asynchronous PostgreSQL operations
-- **Role-based Security**: Secure authentication and authorization system
+- **Role-based Security**: JWT authentication and admin management system
+- **Brazilian Localization**: Complete CNPJ/CPF validation, formatting, and ViaCEP integration
 
 ## 🛠 Technology Stack
 
-### Backend
+### Backend ✅ **IMPLEMENTED**
 - **Python 3.12+**: Core programming language
 - **FastAPI**: Modern web framework for building APIs
 - **PostgreSQL 17**: Primary database with async operations
 - **SQLAlchemy (Async)**: Python SQL toolkit and ORM
-- **Alembic**: Database migrations
-- **JWT Authentication**: Secure token-based authentication
+- **Alembic**: Database migrations with async support
+- **JWT Authentication**: Secure token-based authentication system
+- **Pydantic**: Data validation and serialization
 
-### Frontend
+### Frontend ✅ **IMPLEMENTED**
 - **Jinja2**: Template engine for server-side rendering
-- **HTMX**: Modern frontend interactions without JavaScript complexity
-- **Tailwind CSS**: Utility-first CSS framework
+- **HTMX**: Dynamic interactions for enhanced user experience
+- **JQuery JavaScript**: Minimal JavaScript for form interactions and validation
+- **CSS Framework**: Custom responsive styling with mobile-first approach
 - **Progressive Enhancement**: Works without JavaScript, enhanced with it
 
-### Development & Deployment
-- **Docker**: Containerized development environment
+### Development & Deployment ✅ **IMPLEMENTED**
+- **Docker**: Complete containerized development environment
 - **uv**: Fast Python package manager
 - **Pytest**: Testing framework with async support
 - **Black**: Python code formatter
 - **Pre-commit**: Git hooks for code quality
+- **Alembic**: Database migration management
 
 ## 🏗 Architecture
 
@@ -58,101 +65,121 @@ The Restaurant CRM follows a modern layered architecture:
 ┌─────────────────────────────────────────────────────────────┐
 │                    Frontend Layer                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
-│  │   Admin     │  │   Manager   │  │   Shopper   │        │
-│  │   UI        │  │   UI        │  │   UI        │        │
+│  │   Admin     │  │ Registration│  │ Future UI   │        │
+│  │   UI        │  │    UI       │  │ Components  │        │
 │  └─────────────┘  └─────────────┘  └─────────────┘        │
 │         │                │                │               │
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │              Jinja2 + HTMX Templates                │  │
 │  └─────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
+                               │
+                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    API Gateway Layer                        │
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │                   FastAPI Server                    │  │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐    │  │
+│  │  │ Auth Routes │ │ Registration│ │ Future      │    │  │
+│  │  │             │ │    Routes   │ │    Routes   │    │  │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘    │  │
 │  └─────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
+                               │
+                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                 Business Logic Layer                        │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
-│  │   Auth      │  │ Shopping    │  │ Client      │        │
-│  │  Service    │  │  Service    │  │ Service     │        │
+│  │   Auth      │  │ Client      │  │ Future      │        │
+│  │  Service    │  │Registration │  │   Services  │        │
+│  │             │  │   Service   │  │             │        │
 │  └─────────────┘  └─────────────┘  └─────────────┘        │
 └─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
+                               │
+                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   Data Access Layer                         │
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │              SQLAlchemy Async Models                │  │
 │  └─────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
+                               │
+                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Database Layer                           │
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │                PostgreSQL 17                        │  │
+│  │  Organizations • Users • Registrations • More...    │  │
 │  └─────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## 📋 Development Roadmap
 
-### Stage 1: Initial Project Setup ✅
+### Stage 1: Initial Project Setup ✅ **COMPLETE**
 - [x] Project structure and development environment
-- [x] Database configuration and dependencies
+- [x] Database configuration and dependencies (7 tables with async operations)
 - [x] Foundation architecture components
-- [x] Testing framework setup
+- [x] Testing framework setup with pytest
+- [x] Alembic migration system
 
-### Stage 2: Client Form Register 🔄
-- [ ] Organization/company registration system
-- [ ] Secure user profile management
-- [ ] Brazilian business ID validation (CNPJ)
-- [ ] Clean, accessible forms
+### Stage 2: Client Form Register ✅ **COMPLETE**
+- [x] CNPJ/company registration system with Brazilian validation
+- [x] CPF/individual registration system
+- [x] 2-step registration forms with progressive validation
+- [x] ViaCEP integration for address autocomplete
+- [x] Email uniqueness validation
+- [x] reCAPTCHA integration for security
+- [x] Mobile-responsive registration templates
+- [x] Complete form validation and error handling
 
-### Stage 3: Authentication System 🔄
-- [ ] Role-based authentication system
-- [ ] User profile management with CPF/CNPJ support
-- [ ] Secure session management
-- [ ] Protected routes and middleware
+### Stage 2.1: Admin Management System ✅ **COMPLETE**
+- [x] Admin authentication with JWT tokens
+- [x] Admin dashboard with statistics overview
+- [x] Registration management interface (view, edit, search, export)
+- [x] Advanced filtering and pagination
+- [x] Data export functionality (Excel)
+- [x] Role-based access control for admin functions
 
-### Stage 4: Restaurant Shopping List 🔄
+### Stage 3: Enhanced Authentication System 🔄 **NEXT**
+- [ ] User registration and profile management
+- [ ] Role-based permissions and access control
+- [ ] Secure session management middleware
+- [ ] Protected routes and authentication dependencies
+- [ ] Password reset and account recovery functionality
+
+### Stage 4: Restaurant Shopping List 🔄 **PLANNED**
 - [ ] Category management system
 - [ ] Shopping list CRUD operations
 - [ ] Shopper interface with price tracking
 - [ ] Mobile-responsive UI for field use
 
-### Stage 5: Subscription Management
+### Stage 5: Subscription Management 📋 **PLANNED**
 - [ ] Stripe integration for payment processing
 - [ ] Subscription plan management
 - [ ] Payment handling and notifications
 
-### Stage 6: Inventory Control
+### Stage 6: Inventory Control 📋 **PLANNED**
 - [ ] Complete inventory management
 - [ ] Shopping list integration
 - [ ] Real-time stock tracking
 
-### Stage 7: Point of Sale (POS)
+### Stage 7: Point of Sale (POS) 📋 **PLANNED**
 - [ ] Full POS functionality
 - [ ] Tax receipt generation
 - [ ] Order management (dining room, delivery, kitchen)
 
-### Stage 8: Analytics Dashboard
+### Stage 8: Analytics Dashboard 📋 **PLANNED**
 - [ ] KPI tracking and reporting
 - [ ] Daily, weekly, monthly metrics
 - [ ] Interactive dashboards
 
-### Stage 9: Reports & Predictive Analytics
+### Stage 9: Reports & Predictive Analytics 📋 **PLANNED**
 - [ ] Comprehensive reporting system
 - [ ] Sales analysis by category
 - [ ] AI-powered forecasting
 
-### Stage 10: Testing & Finalization
+### Stage 10: Testing & Finalization 📋 **PLANNED**
 - [ ] Comprehensive testing
 - [ ] Performance optimization
 - [ ] Security audit
@@ -190,8 +217,10 @@ The Restaurant CRM follows a modern layered architecture:
 
 4. **Access the application**
    - **Web Interface**: http://localhost:8001
+   - **Admin Login**: http://localhost:8001/auth/login
+   - **Registration**: http://localhost:8001/registration
    - **API Documentation**: http://localhost:8001/docs
-   - **Database**: localhost:5432 (postgres/postgres)
+   - **Database**: localhost:5432
 
 ### Development Commands
 
@@ -200,91 +229,53 @@ The Restaurant CRM follows a modern layered architecture:
 uv sync
 
 # Run development server
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8001
+uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8001
 
 # Run tests
-pytest
-
-# Format code
-black src/ tests/
-isort src/ tests/
+uv run pytest
 
 # Run migrations
-alembic revision --autogenerate -m "Description"
-alembic upgrade head
-```
-
-## 📁 Project Structure
-
-```
-restaurant-crm/
-├── src/                    # Source code
-│   ├── __init__.py
-│   ├── main.py             # FastAPI application entry point
-│   ├── config.py           # Configuration management
-│   ├── database.py         # Database connection and session
-│   ├── models/             # SQLAlchemy models
-│   ├── schemas/            # Pydantic schemas
-│   ├── services/           # Business logic layer
-│   ├── api/                # FastAPI routes and controllers
-│   └── utils/              # Utility functions
-├── templates/              # Jinja2 templates
-│   ├── base.html           # Base template
-│   ├── auth/               # Authentication templates
-│   ├── organizations/      # Organization management
-│   └── shopping-lists/     # Shopping list management
-├── static/                 # Static assets
-│   ├── css/                # Stylesheets
-│   ├── js/                 # JavaScript files
-│   └── img/                # Images
-├── tests/                  # Test files
-├── alembic/                # Database migrations
-├── docs/                   # Documentation
-│   └── software-architecture.md  # Architecture documentation
-├── .devcontainer/          # VSCode development container
-├── docker-compose.yml      # Docker services
-├── pyproject.toml          # Python dependencies
-├── pytest.ini             # Test configuration
-└── README.md               # This file
+uv run alembic revision --autogenerate -m "Description"
+uv run alembic upgrade head
 ```
 
 ## 🔐 Security
 
-### Authentication & Authorization
+### Authentication & Authorization ✅ **IMPLEMENTED**
 - JWT-based authentication with secure token handling
-- Role-based access control (RBAC) for granular permissions
+- Admin role-based access control for management functions
 - Password hashing using bcrypt
 - Session management with automatic expiration
 
-### Data Protection
-- Input validation and sanitization
-- SQL injection prevention through parameterized queries
-- HTTPS enforcement in production
-- Secure configuration management
+### Data Protection ✅ **IMPLEMENTED**
+- Input validation and sanitization via Pydantic
+- SQL injection prevention through SQLAlchemy ORM
+- reCAPTCHA integration for bot protection
+- Secure configuration management via environment variables
 
-### API Security
-- Protected endpoints with authentication requirements
-- Rate limiting and throttling
+### API Security ✅ **IMPLEMENTED**
+- Protected admin endpoints with authentication requirements
 - Request validation and error handling
 - CORS configuration for secure cross-origin requests
+- Role-based middleware for admin functions
 
-## 📊 Database Schema
+## 📊 Database Schema ✅ **IMPLEMENTED**
 
 ### Core Entities
-- **Organizations**: Restaurant companies (CNPJ-based)
-- **Users**: People with role-based access
-- **Shopping Lists**: Categorized procurement lists
-- **Categories**: Product categorization (proteins, produce, dairy, etc.)
-- **Supermarkets**: Price comparison sources
-- **Inventory Items**: Stock management entities
-- **Orders**: POS transaction records
-- **Subscriptions**: Payment plan management
+- **addresses**: Brazilian address information
+- **cnpj_registrations**: Company registration records
+- **cpf_registrations**: Individual registration records
+- **organizations**: Restaurant companies (CNPJ-based)
+- **registration_sessions**: Multi-step registration state management
+- **users**: System users with roles
+- **user_roles**: Multi-role support for users
 
-### Key Relationships
-- Organizations ↔ Users (many-to-many with roles)
-- Shopping Lists → Categories → Items
-- Inventory ↔ Shopping Lists (purchase flow)
-- Orders → POS Transactions → Receipts
+### Key Features ✅ **COMPLETE**
+- **Brazilian Localization**: Complete CNPJ/CPF validation algorithms
+- **Address Management**: ViaCEP integration for Brazilian postal codes
+- **Multi-step Registration**: Session-based form state management
+- **Data Integrity**: Foreign key constraints and unique indexes
+- **Async Operations**: Full async/await support for high performance
 
 ## 🧪 Testing
 
@@ -292,35 +283,39 @@ The project uses pytest with async support for comprehensive testing:
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run with coverage report
-pytest --cov=src --cov-report=html
+uv run pytest --cov=src --cov-report=html
 
 # Run specific test file
-pytest tests/test_auth.py
+uv run pytest tests/test_auth.py
 
 # Run with verbose output
-pytest -v
+uv run pytest -v
 ```
 
-### Test Structure
-- **Unit Tests**: Test individual functions and classes
-- **Integration Tests**: Test API endpoints with database operations
-- **Authentication Tests**: Test login/logout flows and security
-- **Frontend Tests**: Test HTMX interactions and form submissions
+### Test Structure ✅ **IMPLEMENTED**
+- **Registration Tests**: CNPJ/CPF validation and form handling
+- **Authentication Tests**: JWT token handling and admin login
+- **Database Tests**: Async ORM operations and migrations
+- **Integration Tests**: API endpoint testing with database
+- **Security Tests**: reCAPTCHA validation and data protection
 
 ## 📚 Documentation
 
-### Architecture Documentation
+### Architecture Documentation ✅ **IMPLEMENTED**
 - [Software Architecture](docs/software-architecture.md) - Comprehensive technical architecture
+- [Stage 1 Completion](docs/STAGE_1_COMPLETION.md) - Initial setup documentation
+- [Stage 2 Completion](docs/STAGE_2_COMPLETION.md) - Registration system documentation
+- [Alembic Setup Guide](docs/ALEMBIC_SETUP.md) - Database migration guide
 - [API Documentation](http://localhost:8001/docs) - Interactive API docs (when running)
-- Database schema documentation in the architecture document
 
-### Code Documentation
+### Code Documentation ✅ **IMPLEMENTED**
 - All public functions include comprehensive docstrings
 - Type hints for all function signatures
 - Inline comments for complex business logic
+- Brazilian business logic documentation
 
 ## 🤝 Contributing
 
@@ -353,13 +348,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
-## 📞 Support
-
-For technical support, documentation, or questions:
-- Review the [Software Architecture Document](docs/software-architecture.md)
-- Check the interactive API documentation at `/docs` when the application is running
-- Ensure your development environment is properly configured as described in the Quick Start section
 
 ---
 
