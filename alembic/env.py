@@ -1,11 +1,15 @@
 import asyncio
 from logging.config import fileConfig
-
+import os
+import dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
+
+# Load environment variables from a .env file if present
+dotenv.load_dotenv()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -26,6 +30,13 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+def get_database_url():
+    """Obter DATABASE_URL da variável de ambiente"""
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL não está definida nas variáveis de ambiente")
+    return database_url
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -39,7 +50,8 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    # url = config.get_main_option("sqlalchemy.url")
+    url = get_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -66,7 +78,8 @@ async def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    # url = config.get_main_option("sqlalchemy.url")
+    url = get_database_url()
     if url is None:
         raise ValueError("Database URL is not configured in alembic.ini")
         
