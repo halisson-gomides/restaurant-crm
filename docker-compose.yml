@@ -11,8 +11,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups  # Para backups
-    ports:
-      - "5432:5432"
+    # ports:
+    #- "5432:5432"
     networks:
       - comprajadf_network
     healthcheck:
