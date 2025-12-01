@@ -4,7 +4,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.sh
+*backup*.sh
 .Python
 env/
 venv/
